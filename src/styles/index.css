@@ -1,0 +1,440 @@
+@tailwind base;
+@tailwind components;
+
+/* =================== Font Import Start ======================== */
+
+@font-face {
+  font-family: "Manrope";
+  src: url("../assets/fonts/Manrope/Manrope-ExtraLight.ttf") format("truetype");
+  font-weight: 300;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Manrope";
+  src: url("../assets/fonts/Manrope/Manrope-Light.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Manrope";
+  src: url("../assets/fonts/Manrope/Manrope-Regular.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Manrope";
+  src: url("../assets/fonts/Manrope/Manrope-Medium.ttf") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Manrope";
+  src: url("../assets/fonts/Manrope/Manrope-SemiBold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Manrope";
+  src: url("../assets/fonts/Manrope/Manrope-Bold.ttf") format("truetype");
+  font-weight: 800;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Manrope";
+  src: url("../assets/fonts/Manrope/Manrope-ExtraBold.ttf") format("truetype");
+  font-weight: 900;
+  font-style: normal;
+}
+
+/* =================== Fira Sans Condensed Font ======================== */
+
+@font-face {
+  font-family: "Fira Sans Condensed";
+  src: url("../assets/fonts/Fira-Sans-Condensed/FiraSansCondensed-Thin.ttf")
+    format("truetype");
+  font-weight: 100;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Fira Sans Condensed";
+  src: url("../assets/fonts/Fira-Sans-Condensed/FiraSansCondensed-ExtraLight.ttf")
+    format("truetype");
+  font-weight: 200;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Fira Sans Condensed";
+  src: url("../assets/fonts/Fira-Sans-Condensed/FiraSansCondensed-Light.ttf")
+    format("truetype");
+  font-weight: 300;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Fira Sans Condensed";
+  src: url("../assets/fonts/Fira-Sans-Condensed/FiraSansCondensed-Regular.ttf")
+    format("truetype");
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Fira Sans Condensed";
+  src: url("../assets/fonts/Fira-Sans-Condensed/FiraSansCondensed-Medium.ttf")
+    format("truetype");
+  font-weight: 500;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Fira Sans Condensed";
+  src: url("../assets/fonts/Fira-Sans-Condensed/FiraSansCondensed-SemiBold.ttf")
+    format("truetype");
+  font-weight: 600;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Fira Sans Condensed";
+  src: url("../assets/fonts/Fira-Sans-Condensed/FiraSansCondensed-Bold.ttf")
+    format("truetype");
+  font-weight: 700;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Fira Sans Condensed";
+  src: url("../assets/fonts/Fira-Sans-Condensed/FiraSansCondensed-ExtraBold.ttf")
+    format("truetype");
+  font-weight: 800;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Fira Sans Condensed";
+  src: url("../assets/fonts/Fira-Sans-Condensed/FiraSansCondensed-Black.ttf")
+    format("truetype");
+  font-weight: 900;
+  font-style: normal;
+}
+
+/* =================== Font Import End ======================== */
+
+/* =================== Basic Styles Start ======================== */
+
+*,
+*::before,
+*::after {
+  -webkit-user-drag: none;
+}
+
+html {
+  /* @apply text-[105%] lg:text-[inherit] xl:text-[100%]; */
+  text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
+}
+
+::-webkit-scrollbar {
+  @apply w-1 h-[5px] bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply w-0 bg-neutral-400 rounded-full;
+}
+
+::selection {
+  @apply bg-skyblue text-white;
+}
+
+body {
+  @apply cursor-default relative;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+bold,
+span,
+a {
+  @apply font-firasans;
+}
+
+p {
+  @apply font-manrope font-medium;
+}
+
+/* =================== Basic Styles End ======================== */
+
+/* =================== Reusable Styling Start ======================== */
+
+.row {
+  @apply w-row-sm lg:w-row max-w-[120rem] m-auto;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+}
+
+/* =================== Reusable Styling End ======================== */
+
+/* =================== Navigation Menus Start ======================== */
+
+.nav-link {
+  @apply relative p-1 transition-all duration-300 uppercase;
+}
+
+.nav-link-active {
+  @apply text-skyblue;
+}
+
+.nav-link::after {
+  @apply content-[""] absolute w-0 h-[0.2rem] bg-skyblue left-0 -bottom-1 transition-all duration-300;
+}
+
+.nav-link-active::after {
+  @apply w-full;
+}
+
+.nav-link:hover {
+  @apply text-skyblue;
+}
+
+.nav-link:hover::after {
+  @apply w-full;
+}
+
+.hamburger-menu-container {
+  @apply w-10 h-8 cursor-pointer;
+}
+
+.hamburger-menu-container span,
+.hamburger-menu-container span::before,
+.hamburger-menu-container span::after {
+  @apply bg-skyblue rounded-md content-[''] absolute w-10 h-[4px]  mt-[13px] transition-all duration-300 ease-in-out;
+}
+
+.hamburger-menu-container span::before {
+  @apply -mt-3;
+}
+
+.hamburger-menu-container span::after {
+  @apply mt-3;
+}
+
+.hamburger-menu-container.active span {
+  @apply bg-transparent;
+}
+
+.hamburger-menu-container.active span::before {
+  @apply mt-0 transform rotate-45;
+}
+
+.hamburger-menu-container.active span::after {
+  @apply mt-0 transform -rotate-45;
+}
+
+/* =================== Navigation Menus End ======================== */
+
+/* ======================= Swiper Start ========================== */
+
+.swiper {
+  @apply w-full h-full;
+}
+
+.swiper-slide {
+  @apply text-center text-lg flex items-center justify-center h-auto !important;
+}
+
+.swiper-pagination .swiper-pagination-bullet {
+  @apply bg-neutral-300 opacity-100;
+}
+
+.swiper-pagination .swiper-pagination-bullet-active {
+  @apply w-3 h-3 bg-skyblue;
+}
+
+/* ================ Swiper End ================= */
+
+/* ================ About Timeline Start ================= */
+
+.vertical-timeline-element-content {
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+}
+
+.vertical-timeline--two-columns
+  .vertical-timeline-element-content
+  .vertical-timeline-element-date {
+  top: 0px !important;
+}
+
+.vertical-timeline::before {
+  width: 3px !important;
+  z-index: -2 !important;
+}
+
+.vertical-timeline-element-content .vertical-timeline-element-date {
+  opacity: 1 !important;
+}
+
+/* ================ About Timeline End ================= */
+
+/* ================ Form Start ================= */
+
+.form-group {
+  @apply w-full h-auto flex items-center justify-around gap-2 lg:text-xl text-lg;
+}
+
+.form-group textarea {
+  @apply py-[0.3rem] pl-4 border-[0.15rem] border-solid border-gray/50 focus:border-skyblue text-black rounded-[0.4rem] transition-all duration-300 w-full outline-none placeholder:text-neutral-500 text-lg;
+}
+
+.form-group input[type="submit"] {
+  @apply py-[0.3rem] pl-4 border-[0.15rem] border-solid border-skyblue text-white rounded-[0.4rem] transition-all duration-300 w-full outline-none;
+}
+
+.form-group input[type="submit"]:hover {
+  @apply bg-darkblue border-darkblue;
+}
+
+/* ================ Form End ================= */
+
+/* ================ Product Page Start ================= */
+
+/* Hide spinners in Chrome, Edge, and Safari */
+.input-type-number::-webkit-inner-spin-button,
+.input-type-number::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Hide spinners in Firefox */
+.input-type-number {
+  -moz-appearance: textfield;
+}
+
+/* ================ Product Page End ================= */
+
+@layer utilities {
+  .animation-delay-100 {
+    animation-delay: 0.1s;
+  }
+  .animation-delay-200 {
+    animation-delay: 0.2s;
+  }
+  .animation-delay-300 {
+    animation-delay: 0.3s;
+  }
+}
+
+@keyframes caret-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.animate-caret-blink {
+  animation: caret-blink 1s infinite;
+}
+
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --radius: 0.5rem;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+  .dark {
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 0.5rem;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 224.3 76.3% 48%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}

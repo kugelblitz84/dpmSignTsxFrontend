@@ -1,0 +1,12 @@
+# robots.txt for your frontend React app
+
+# Allow all crawlers complete access
+User-agent: *
+Disallow:
+
+# If you want to block certain folders like /admin or /api (if they’re exposed on frontend), do this:
+# Disallow: /admin
+# Disallow: /api
+
+# Optional: Sitemap URL (update with your actual deployed domain)
+Sitemap: https://dpmsign.com/sitemap

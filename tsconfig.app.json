@@ -1,0 +1,36 @@
+{
+	"compilerOptions": {
+		"target": "ES2020", // Keep this as ES2020 for modern browser support
+		"useDefineForClassFields": true,
+		"lib": ["ES2020", "DOM", "DOM.Iterable"], // Add DOM.Iterable for better DOM support
+		"module": "ESNext", // Use ESNext for modern module syntax
+		"skipLibCheck": true, // Skip library checks for faster builds
+
+		/* Bundler mode */
+		"moduleResolution": "bundler", // Use "bundler" for Vite compatibility
+		"allowImportingTsExtensions": true, // Allow importing .ts files without extensions
+		"isolatedModules": true, // Required for Vite's TypeScript handling
+		"moduleDetection": "force", // Force module detection
+		"noEmit": true, // No need to emit files in a Vite project
+		"jsx": "react-jsx",
+
+		/* Linting */
+		"strict": true, // Enable all strict type-checking options
+		"noUnusedLocals": true, // Warn on unused locals
+		"noUnusedParameters": true, // Warn on unused parameters
+		"noFallthroughCasesInSwitch": true, // Warn on fallthrough cases in switch statements
+
+		/* Paths for ShadCN */
+		"baseUrl": ".", // Base URL for path resolution
+		"paths": {
+			"@/*": ["./src/*"] // Map @/* to ./src/*
+		},
+
+		/* Additional Optimizations */
+		"incremental": true, // Enable incremental compilation for faster builds
+		"esModuleInterop": true, // Enable ES module interop for better compatibility
+		"resolveJsonModule": true // Allow importing JSON files
+	},
+	"include": ["src"], // Include only the src directory
+	"exclude": ["node_modules", "dist"] // Exclude node_modules and dist
+}

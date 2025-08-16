@@ -1,0 +1,28 @@
+{
+	"compilerOptions": {
+		"target": "ES2022", // Use ES2022 for Node.js compatibility
+		"lib": ["ES2023"], // Use ES2023 for modern features
+		"module": "ESNext", // Use ESNext for modern module syntax
+		"skipLibCheck": true, // Skip library checks for faster builds
+
+		/* Bundler mode */
+		"moduleResolution": "bundler", // Use "bundler" for Vite compatibility
+		"allowImportingTsExtensions": true, // Allow importing .ts files without extensions
+		"isolatedModules": true, // Required for Vite's TypeScript handling
+		"moduleDetection": "force", // Force module detection
+		"noEmit": true, // No need to emit files in a Vite project
+
+		/* Linting */
+		"strict": true, // Enable all strict type-checking options
+		"noUnusedLocals": true, // Warn on unused locals
+		"noUnusedParameters": true, // Warn on unused parameters
+		"noFallthroughCasesInSwitch": true, // Warn on fallthrough cases in switch statements
+
+		/* Additional Optimizations */
+		"incremental": true, // Enable incremental compilation for faster builds
+		"esModuleInterop": true, // Enable ES module interop for better compatibility
+		"resolveJsonModule": true // Allow importing JSON files
+	},
+	"include": ["vite.config.ts"], // Include only the Vite config file
+	"exclude": ["node_modules", "dist"] // Exclude node_modules and dist
+}
