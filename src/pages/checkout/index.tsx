@@ -276,21 +276,22 @@ const Checkout = () => {
 					})
 				);
 
-				const response = await orderService.createOrderRequest(
-					customer.customerId,
-					checkoutFormData.name,
-					checkoutFormData.phone,
-					checkoutFormData.billingAddress,
-					checkoutFormData.additionalNotes,
-					checkoutFormData.designFiles,
-					checkoutFormData.deliveryMethod,
-					checkoutFormData.courierId,
-					checkoutFormData.courierAddress,
-					checkoutFormData.staffId,
-					checkoutFormData.couponId,
-					// checkoutFormData.paymentMethod,
-					orderItems
-				);
+		       const response = await orderService.createOrderRequest(
+			       token,
+			       customer.customerId,
+			       checkoutFormData.name,
+			       checkoutFormData.phone,
+			       checkoutFormData.billingAddress,
+			       checkoutFormData.additionalNotes,
+			       checkoutFormData.designFiles,
+			       checkoutFormData.deliveryMethod,
+			       checkoutFormData.courierId,
+			       checkoutFormData.courierAddress,
+			       checkoutFormData.staffId,
+			       checkoutFormData.couponId,
+			       // checkoutFormData.paymentMethod,
+			       orderItems
+		       );
 
 				if (response.status === 201) {
 					toast({

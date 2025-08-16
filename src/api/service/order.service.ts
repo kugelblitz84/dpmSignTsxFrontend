@@ -106,29 +106,30 @@ class Order {
 		this.orderRequestCreateSchema = Joi.object(this.schema);
 	}
 
-	createOrderRequest = async (
-		customerId: number,
-		name: string,
-		phone: string,
-		billingAddress: string,
-		additionalNotes: string,
-		designFiles: File[] | [],
-		deliveryMethod: string,
-		courierId: number | null,
-		courierAddress: string,
-		staffId: number | null,
-		couponId: number | null,
-		// paymentMethod: string,
-		orderItems: {
-			productId: number;
-			productVariantId: number;
-			quantity: number;
-			size: number | null;
-			widthInch: number | null;
-			heightInch: number | null;
-			price: number;
-		}[]
-	) => {
+       createOrderRequest = async (
+	       token: string,
+	       customerId: number,
+	       name: string,
+	       phone: string,
+	       billingAddress: string,
+	       additionalNotes: string,
+	       designFiles: File[] | [],
+	       deliveryMethod: string,
+	       courierId: number | null,
+	       courierAddress: string,
+	       staffId: number | null,
+	       couponId: number | null,
+	       // paymentMethod: string,
+	       orderItems: {
+		       productId: number;
+		       productVariantId: number;
+		       quantity: number;
+		       size: number | null;
+		       widthInch: number | null;
+		       heightInch: number | null;
+		       price: number;
+	       }[]
+       ) => {
 		try {
 			const form = new FormData();
 
@@ -161,11 +162,12 @@ class Order {
 				}
 			}
 
-			const response = await apiClient.post(this.orderRequestCreateUrl, form, {
-				headers: {
-					"Content-Type": "multipart/form-data",
-				},
-			});
+		       const response = await apiClient.post(this.orderRequestCreateUrl, form, {
+			       headers: {
+				       "Content-Type": "multipart/form-data",
+				       Authorization: `Bearer ${token}`,
+			       },
+		       });
 			return response.data;
 		} catch (err: any) {
 			let fetchRequestError: ApiError;
