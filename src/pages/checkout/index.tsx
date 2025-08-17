@@ -276,22 +276,34 @@ const Checkout = () => {
 					})
 				);
 
-		       const response = await orderService.createOrderRequest(
-			       token,
-			       customer.customerId,
-			       checkoutFormData.name,
-			       checkoutFormData.phone,
-			       checkoutFormData.billingAddress,
-			       checkoutFormData.additionalNotes,
-			       checkoutFormData.designFiles,
-			       checkoutFormData.deliveryMethod,
-			       checkoutFormData.courierId,
-			       checkoutFormData.courierAddress,
-			       checkoutFormData.staffId,
-			       checkoutFormData.couponId,
-			       // checkoutFormData.paymentMethod,
-			       orderItems
-		       );
+		// Use a local variable to ensure we send the most recent staffId
+		const staffIdToSend =
+			checkoutFormData.staffId === null
+				? null
+				: Number(checkoutFormData.staffId);
+		// console.debug("Checkout: sending staffId ->", staffIdToSend);
+		// toast({
+		// 	description: `Staff Id: ${staffIdToSend}`,
+		// 	variant: "success",
+		// 	duration: 10000,
+		// });
+
+		const response = await orderService.createOrderRequest(
+			token,
+			customer.customerId,
+			checkoutFormData.name,
+			checkoutFormData.phone,
+			checkoutFormData.billingAddress,
+			checkoutFormData.additionalNotes,
+			checkoutFormData.designFiles,
+			checkoutFormData.deliveryMethod,
+			checkoutFormData.courierId,
+			checkoutFormData.courierAddress,
+			staffIdToSend,
+			checkoutFormData.couponId,
+			// checkoutFormData.paymentMethod,
+			orderItems
+		);
 
 				if (response.status === 201) {
 					toast({

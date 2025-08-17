@@ -143,17 +143,22 @@ class Order {
 			// form.append("paymentMethod", paymentMethod);
 			form.append("orderItems", JSON.stringify(orderItems));
 
-			if (courierId && courierAddress) {
-				form.append("courierId", courierId?.toString());
+			// Append courierId even if it's 0; only skip when null/undefined
+			if (courierId !== null && courierId !== undefined) {
+				form.append("courierId", courierId.toString());
+			}
+			if (courierAddress) {
 				form.append("courierAddress", courierAddress);
 			}
 
-			if (staffId) {
-				form.append("staffId", staffId?.toString());
+			// Append staffId even if it's 0; only skip when null/undefined
+			if (staffId !== null && staffId !== undefined) {
+				form.append("staffId", staffId.toString());
 			}
 
-			if (couponId) {
-				form.append("couponId", couponId?.toString());
+			// Append couponId even if it's 0; only skip when null/undefined
+			if (couponId !== null && couponId !== undefined) {
+				form.append("couponId", couponId.toString());
 			}
 
 			if (designFiles.length > 0) {
@@ -162,12 +167,38 @@ class Order {
 				}
 			}
 
-		       const response = await apiClient.post(this.orderRequestCreateUrl, form, {
-			       headers: {
-				       "Content-Type": "multipart/form-data",
-				       Authorization: `Bearer ${token}`,
-			       },
-		       });
+			// Console output: show a JSON-friendly snapshot of the request and FormData entries
+			const debugPayload = {
+				customerId,
+				customerName: name,
+				customerPhone: phone,
+				billingAddress,
+				additionalNotes,
+				deliveryMethod,
+				orderItems,
+				courierId,
+				courierAddress,
+				staffId,
+				couponId,
+				designFiles: designFiles.map((f) => f.name),
+			};
+			console.debug("OrderService.createOrderRequest - payload:", debugPayload);
+			try {
+				for (const pair of (form as any).entries()) {
+					console.debug("FormData entry:", pair[0], pair[1]);
+				}
+			} catch (e) {
+				// ignore
+			}
+
+			// Let axios/browser set the Content-Type (with correct boundary) for FormData
+			const response = await apiClient.post(this.orderRequestCreateUrl, form, {
+				headers: {
+					Authorization: `Bearer ${token}`,
+				},
+			});
+
+			// (Previously printed FormData entries here — removed duplicate)
 			return response.data;
 		} catch (err: any) {
 			let fetchRequestError: ApiError;
