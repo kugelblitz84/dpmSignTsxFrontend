@@ -1,4 +1,3 @@
-import Hero from "@/pages/career/hero";
 import WhyWorkWithUs from "@/pages/career/why-work-with-us";
 import JobPost from "@/pages/career/job-post";
 import Internship from "@/pages/career/internship";

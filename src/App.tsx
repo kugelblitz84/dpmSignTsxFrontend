@@ -60,7 +60,16 @@ const App = () => {
 					<CartProvider>
 						<Layout>
 							<Routes>
-								<Route path={routes.home.path} element={<Home />} />
+								<Route
+									path={routes.home.path}
+									element={
+										<ProductProvider>
+											<CategoryProvider>
+												<Home />
+											</CategoryProvider>
+										</ProductProvider>
+									}
+								/>
 								<Route
 									path={routes.products.path}
 									element={

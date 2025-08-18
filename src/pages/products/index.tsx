@@ -1,11 +1,4 @@
-import SectionHeading from "@/components/section-heading";
-import {
-	Breadcrumb,
-	BreadcrumbItem,
-	BreadcrumbLink,
-	BreadcrumbList,
-	BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
+// Breadcrumb and SectionHeading are unused in current layout
 import {
 	Select,
 	SelectContent,
@@ -22,10 +15,9 @@ import {
 	SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+// Link and routes are unused as breadcrumb is commented out
 import ProductCard from "@/components/product-card";
 import { SlidersHorizontal } from "lucide-react";
-import routes from "@/routes";
 import ProductFilter from "@/pages/products/product-filter"; // Assuming ProductFilter is a separate component
 import { ProductProps, useProduct } from "@/hooks/use-product";
 import { useEffect, useState } from "react";
@@ -35,11 +27,6 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const Products = () => {
-	const sectionHeadingProp = {
-		title: "Our Products",
-		// description:
-		// 	"There are many variations of passages of Lorem Ipsum available, but the majority have suffered alteration in some form, by injected humour, or randomised words which don't",
-	};
 	const { products, totalPages, page, setPage, setLimit, loading } =
 		useProduct();
 	const { categories } = useCategory();
@@ -71,12 +58,12 @@ const Products = () => {
 		} else if (sortedBy === "recent") {
 			sorted.sort(
 				(a, b) =>
-					(new Date(b.createdAt) as any) - (new Date(a.createdAt) as any)
+					new Date(b.createdAt).valueOf() - new Date(a.createdAt).valueOf()
 			);
 		} else if (sortedBy === "oldest") {
 			sorted.sort(
 				(a, b) =>
-					(new Date(a.createdAt) as any) - (new Date(b.createdAt) as any)
+					new Date(a.createdAt).valueOf() - new Date(b.createdAt).valueOf()
 			);
 		} else if (sortedBy === "name") {
 			sorted.sort((a, b) => a.name.localeCompare(b.name));
@@ -151,7 +138,7 @@ const Products = () => {
 					</div>
 
 					<div className="flex items-center justify-between gap-3">
-						<Select onValueChange={(e) => setSortedBy(e as any)}>
+						<Select onValueChange={(e) => setSortedBy(e as typeof sortedBy)}>
 							<SelectTrigger className="w-[200px]">
 								<SelectValue placeholder="Sort by" />
 							</SelectTrigger>

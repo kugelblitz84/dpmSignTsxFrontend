@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "react-router-dom";
@@ -35,14 +36,14 @@ export interface ProductReviewProps {
 	description: string;
 	status: "published" | "unpublished";
 	productId: number;
-	customerId: number;
+	customerId: number | null;
 	product: {
 		name: string;
 	};
-	customer: {
+	customer?: {
 		name: string;
 		email: string;
-	};
+	} | null;
 	createdAt: Date;
 	updatedAt: Date;
 }
@@ -190,9 +191,18 @@ const ProductProvider = ({ children }: { children: React.ReactNode }) => {
 
 			setProducts(updatedProducts);
 			setTotalPages(response.data.totalPages);
-		} catch (err: any) {
-			setError(err.message || "Failed to fetch products.");
-			if (err.status === 401) {
+		} catch (err: unknown) {
+			const message =
+				err instanceof Error ? err.message : "Failed to fetch products.";
+			setError(message);
+			const status = ((): number | undefined => {
+				if (err && typeof err === "object" && "status" in err) {
+					const v = (err as Record<string, unknown>).status;
+					return typeof v === "number" ? v : undefined;
+				}
+				return undefined;
+			})();
+			if (status === 401) {
 				return logout();
 			}
 		} finally {
@@ -231,9 +241,18 @@ const ProductProvider = ({ children }: { children: React.ReactNode }) => {
 				.filter((product: ProductProps) => product.isActive === true);
 
 			setRandomProducts(updatedProducts);
-		} catch (err: any) {
-			setError(err.message || "Failed to fetch products.");
-			if (err.status === 401) {
+		} catch (err: unknown) {
+			const message =
+				err instanceof Error ? err.message : "Failed to fetch products.";
+			setError(message);
+			const status = ((): number | undefined => {
+				if (err && typeof err === "object" && "status" in err) {
+					const v = (err as Record<string, unknown>).status;
+					return typeof v === "number" ? v : undefined;
+				}
+				return undefined;
+			})();
+			if (status === 401) {
 				return logout();
 			}
 		} finally {
@@ -269,8 +288,10 @@ const ProductProvider = ({ children }: { children: React.ReactNode }) => {
 			setFetchedProducts((prev) => new Map(prev).set(productId, product));
 
 			return product;
-		} catch (err: any) {
-			setError(err.message || "Failed to fetch product by id.");
+		} catch (err: unknown) {
+			const message =
+				err instanceof Error ? err.message : "Failed to fetch product by id.";
+			setError(message);
 			return null;
 		}
 	};
@@ -278,11 +299,13 @@ const ProductProvider = ({ children }: { children: React.ReactNode }) => {
 	// Fetch product on component mount
 	useEffect(() => {
 		fetchProduct();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [location, searchTerm, page, limit]);
 
 	// Fetch product on component mount
 	useEffect(() => {
 		fetchRandomProducts();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [excludeProductId]);
 
 	// Memoize the context value to avoid unnecessary re-renders
@@ -306,6 +329,7 @@ const ProductProvider = ({ children }: { children: React.ReactNode }) => {
 			fetchRandomProducts,
 			fetchProductById,
 		}),
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 		[products, loading, error, searchTerm, page, limit]
 	);
 

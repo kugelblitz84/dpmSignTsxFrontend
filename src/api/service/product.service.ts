@@ -14,7 +14,7 @@ class Product {
 				`${this.productBaseUrl}/${productId}`
 			);
 			return response.data;
-		} catch (err: any) {
+		} catch (err: unknown) {
 			let fetchRequestError: ApiError;
 
 			if (err instanceof AxiosError) {
@@ -32,13 +32,19 @@ class Product {
 				};
 				throw fetchRequestError;
 			} else {
-				fetchRequestError = err.response.data || err.response.data.error;
-				fetchRequestError.status = err.response.data.status;
-				fetchRequestError.message =
-					fetchRequestError.message ||
-					fetchRequestError.error.message ||
-					"An unknown error occured.";
-				throw fetchRequestError;
+				const e = err as Record<string, unknown>;
+				const status =
+					typeof e?.["status"] === "number" ? (e["status"] as number) : 500;
+				const message =
+					typeof e?.["message"] === "string"
+						? (e["message"] as string)
+						: "An unknown error occured.";
+				throw {
+					name: "Error",
+					status,
+					message,
+					error: new Error(message),
+				} as ApiError;
 			}
 		}
 	};
@@ -55,10 +61,10 @@ class Product {
 			}
 
 			const response = await apiClient.get(
-				`${this.productBaseUrl}/?${params.toString()}`
+				`${this.productBaseUrl}?${params.toString()}`
 			);
 			return response.data;
-		} catch (err: any) {
+		} catch (err: unknown) {
 			let fetchRequestError: ApiError;
 
 			if (err instanceof AxiosError) {
@@ -76,13 +82,19 @@ class Product {
 				};
 				throw fetchRequestError;
 			} else {
-				fetchRequestError = err.response.data || err.response.data.error;
-				fetchRequestError.status = err.response.data.status;
-				fetchRequestError.message =
-					fetchRequestError.message ||
-					fetchRequestError.error.message ||
-					"An unknown error occured.";
-				throw fetchRequestError;
+				const e = err as Record<string, unknown>;
+				const status =
+					typeof e?.["status"] === "number" ? (e["status"] as number) : 500;
+				const message =
+					typeof e?.["message"] === "string"
+						? (e["message"] as string)
+						: "An unknown error occured.";
+				throw {
+					name: "Error",
+					status,
+					message,
+					error: new Error(message),
+				} as ApiError;
 			}
 		}
 	};
@@ -93,15 +105,14 @@ class Product {
 				limit: limit.toString(),
 			});
 
-			if (excludeProductId) {
-				params.append("excludeProductId", excludeProductId.toString());
-			}
+			// Some backends may require excludeProductId explicitly; default to 0 when not provided
+			params.append("excludeProductId", (excludeProductId ?? 0).toString());
 
 			const response = await apiClient.get(
-				`${this.productBaseUrl}/random/?${params.toString()}`
+				`${this.productBaseUrl}/random?${params.toString()}`
 			);
 			return response.data;
-		} catch (err: any) {
+		} catch (err: unknown) {
 			let fetchRequestError: ApiError;
 
 			if (err instanceof AxiosError) {
@@ -119,13 +130,65 @@ class Product {
 				};
 				throw fetchRequestError;
 			} else {
-				fetchRequestError = err.response.data || err.response.data.error;
-				fetchRequestError.status = err.response.data.status;
-				fetchRequestError.message =
-					fetchRequestError.message ||
-					fetchRequestError.error.message ||
-					"An unknown error occured.";
+				const e = err as Record<string, unknown>;
+				const status =
+					typeof e?.["status"] === "number" ? (e["status"] as number) : 500;
+				const message =
+					typeof e?.["message"] === "string"
+						? (e["message"] as string)
+						: "An unknown error occured.";
+				throw {
+					name: "Error",
+					status,
+					message,
+					error: new Error(message),
+				} as ApiError;
+			}
+		}
+	};
+
+	// Returns one top-selling product per category.
+	// Expected backend route: GET /product/best-selling-by-category?limit=<n>
+	fetchBestSellingByCategory = async (limitPerCategory: number = 1) => {
+		try {
+			const params = new URLSearchParams({
+				limit: String(limitPerCategory),
+			});
+			const response = await apiClient.get(
+				`${this.productBaseUrl}/best-selling-by-category?${params.toString()}`
+			);
+			return response.data;
+		} catch (err: unknown) {
+			let fetchRequestError: ApiError;
+
+			if (err instanceof AxiosError) {
+				fetchRequestError = {
+					name: err.name || "AxiosError",
+					status:
+						err.response?.data?.status ||
+						err.response?.data?.status ||
+						err.status,
+					message:
+						err.response?.data?.message ||
+						err.response?.data?.error ||
+						err.message,
+					error: err,
+				};
 				throw fetchRequestError;
+			} else {
+				const e = err as Record<string, unknown>;
+				const status =
+					typeof e?.["status"] === "number" ? (e["status"] as number) : 500;
+				const message =
+					typeof e?.["message"] === "string"
+						? (e["message"] as string)
+						: "An unknown error occured.";
+				throw {
+					name: "Error",
+					status,
+					message,
+					error: new Error(message),
+				} as ApiError;
 			}
 		}
 	};

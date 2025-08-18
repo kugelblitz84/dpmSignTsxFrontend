@@ -3,9 +3,14 @@
 // import ProductImage3 from "@/assets/images/best-selling-product-3.jpg";
 // import ProductImage4 from "@/assets/images/best-selling-product-4.jpg";
 // import ProductImage5 from "@/assets/images/best-selling-product-5.jpg";
+import { useEffect, useMemo, useState } from "react";
 import SectionHeading, {
 	SectionHeadingProps,
 } from "@/components/section-heading";
+import ProductCard from "@/components/product-card";
+import { useProduct, ProductProps } from "@/hooks/use-product";
+import { useCategory } from "@/hooks/use-category";
+import { productService } from "@/api";
 
 // import { Swiper, SwiperSlide } from "swiper/react";
 // import { Autoplay } from "swiper/modules";
@@ -23,94 +28,101 @@ import "swiper/css/navigation";
 // 	category: string;
 // }
 
+type BestByCategoryItem = ProductProps & { categoryId: number | null };
+
 const BestSellingProducts = () => {
 	const sectionHeadingProp: SectionHeadingProps = {
 		title: "Our Best Selling Products",
 	};
 
-	// const bestSellingProducts: Product[] = [
-	// 	{
-	// 		id: "prdct10",
-	// 		title: "LED Signage",
-	// 		description:
-	// 			"There are many variations of passages of Lorem Ipsum available, but the majority have suffered alteration in some form, by injected humour, or randomised words which don't",
-	// 		img: ProductImage1,
-	// 		category: "acrylic",
-	// 	},
-	// 	{
-	// 		id: "prdct10",
-	// 		title: "School Shirt Badge",
-	// 		description:
-	// 			"There are many variations of passages of Lorem Ipsum available, but the majority have suffered alteration in some form, by injected humour, or randomised words which don't",
-	// 		img: ProductImage2,
-	// 		category: "acrylic",
-	// 	},
-	// 	{
-	// 		id: "prdct10",
-	// 		title: "Wooden Crest",
-	// 		description:
-	// 			"There are many variations of passages of Lorem Ipsum available, but the majority have suffered alteration in some form, by injected humour, or randomised words which don't",
-	// 		img: ProductImage3,
-	// 		category: "acrylic",
-	// 	},
-	// 	{
-	// 		id: "prdct10",
-	// 		title: "Creative IT Institute Award Plaque",
-	// 		description:
-	// 			"There are many variations of passages of Lorem Ipsum available, but the majority have suffered alteration in some form, by injected humour, or randomised words which don't",
-	// 		img: ProductImage4,
-	// 		category: "acrylic",
-	// 	},
-	// 	{
-	// 		id: "prdct10",
-	// 		title: "LED Signage Installation",
-	// 		description:
-	// 			"There are many variations of passages of Lorem Ipsum available, but the majority have suffered alteration in some form, by injected humour, or randomised words which don't",
-	// 		img: ProductImage5,
-	// 		category: "acrylic",
-	// 	},
-	// ];
+	const { products } = useProduct();
+	const { categories } = useCategory();
+	const [bestSelling, setBestSelling] = useState<BestByCategoryItem[]>([]);
+	const [loading, setLoading] = useState<boolean>(false);
+	const [error, setError] = useState<string | null>(null);
+
+	useEffect(() => {
+		let cancelled = false;
+		const run = async () => {
+			setLoading(true);
+			setError(null);
+			try {
+				// Try backend endpoint first
+				const res = await productService.fetchBestSellingByCategory(1);
+				if (!cancelled && res?.data?.products?.length) {
+					setBestSelling(res.data.products as BestByCategoryItem[]);
+					return;
+				}
+				throw new Error("Empty best-selling response");
+			} catch {
+				// Fallback: derive best-selling per category from existing product list
+				const derived = deriveBestByCategory(products);
+				if (!cancelled) setBestSelling(derived);
+			} finally {
+				if (!cancelled) setLoading(false);
+			}
+		};
+		run();
+		return () => {
+			cancelled = true;
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [products.length]);
+
+	const categoriesById = useMemo(
+		() => new Map(categories.map((c) => [c.categoryId, c])),
+		[categories]
+	);
 
 	return (
 		<section data-aos="fade-up" className="py-8">
 			<SectionHeading title={sectionHeadingProp.title} />
-
-			{/* <div className="row py-2">
-				<Swiper
-					autoplay={{
-						delay: 1200,
-						disableOnInteraction: false,
-						pauseOnMouseEnter: true,
-					}}
-					modules={[Autoplay]}
-					spaceBetween={30}
-					loop={true}
-					breakpoints={{
-						0: {
-							slidesPerView: 1,
-						},
-						768: {
-							slidesPerView: 2,
-						},
-						1280: {
-							slidesPerView: 4,
-						},
-					}}
-				>
-					{bestSellingProducts.map((product, index) => (
-						<SwiperSlide key={index}>
-							<ProductCard
-								productId={product.id}
-								productImg={product.img}
-								productName={product.title}
-								productCategory={product.category}
-							/>
-						</SwiperSlide>
-					))}
-				</Swiper>
-			</div> */}
+			<div className="row py-2">
+				{loading && (
+					<p className="text-center w-full py-6">Loading best sellers…</p>
+				)}
+				{!loading && error && (
+					<p className="text-center w-full py-6 text-red-600">{error}</p>
+				)}
+				{!loading && !error && bestSelling.length > 0 && (
+					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+						{bestSelling.map((p) => (
+							<div key={p.productId} className="flex flex-col gap-2">
+								<ProductCard product={p} />
+								{p.categoryId && categoriesById.get(p.categoryId) && (
+									<span className="text-sm text-gray-600">
+										Top in {categoriesById.get(p.categoryId)!.name}
+									</span>
+								)}
+							</div>
+						))}
+					</div>
+				)}
+				{!loading && !error && bestSelling.length === 0 && (
+					<p className="text-center w-full py-6">No best sellers to show.</p>
+				)}
+			</div>
 		</section>
 	);
 };
+
+// Simple heuristic fallback: pick, per category, the product with most reviews.
+function deriveBestByCategory(all: ProductProps[]): BestByCategoryItem[] {
+	const byCategory = new Map<number, ProductProps[]>();
+	for (const p of all) {
+		if (p.categoryId == null) continue;
+		if (!byCategory.has(p.categoryId)) byCategory.set(p.categoryId, []);
+		byCategory.get(p.categoryId)!.push(p);
+	}
+	const result: BestByCategoryItem[] = [];
+	for (const [categoryId, items] of byCategory.entries()) {
+		if (items.length === 0) continue;
+		const best = [...items].sort(
+			(a, b) => b.reviews.length - a.reviews.length
+		)[0];
+		result.push({ ...best, categoryId });
+	}
+	return result;
+}
 
 export default BestSellingProducts;
