@@ -3,6 +3,12 @@ import { apiBaseURL } from "@/lib/dotenv";
 import { apiClient, ApiError } from "@/api/";
 import { AxiosError } from "axios";
 
+type AxiosErrorData = {
+	status?: number;
+	message?: string;
+	error?: string;
+};
+
 class Order {
 	private schema: {
 		name: Joi.StringSchema;
@@ -106,30 +112,31 @@ class Order {
 		this.orderRequestCreateSchema = Joi.object(this.schema);
 	}
 
-       createOrderRequest = async (
-	       token: string,
-	       customerId: number,
-	       name: string,
-	       phone: string,
-	       billingAddress: string,
-	       additionalNotes: string,
-	       designFiles: File[] | [],
-	       deliveryMethod: string,
-	       courierId: number | null,
-	       courierAddress: string,
-	       staffId: number | null,
-	       couponId: number | null,
-	       // paymentMethod: string,
-	       orderItems: {
-		       productId: number;
-		       productVariantId: number;
-		       quantity: number;
-		       size: number | null;
-		       widthInch: number | null;
-		       heightInch: number | null;
-		       price: number;
-	       }[]
-       ) => {
+	createOrderRequest = async (
+		token: string,
+		customerId: number,
+		name: string,
+		email: string,
+		phone: string,
+		billingAddress: string,
+		additionalNotes: string,
+		designFiles: File[] | [],
+		deliveryMethod: string,
+		courierId: number | null,
+		courierAddress: string,
+		staffId: number | null,
+		couponId: number | null,
+		// paymentMethod: string,
+		orderItems: {
+			productId: number;
+			productVariantId: number;
+			quantity: number;
+			size: number | null;
+			widthInch: number | null;
+			heightInch: number | null;
+			price: number;
+		}[]
+	) => {
 		try {
 			const form = new FormData();
 
@@ -137,6 +144,7 @@ class Order {
 			form.append("customerId", customerId.toString());
 			form.append("customerName", name);
 			form.append("customerPhone", phone);
+			form.append("customerEmail", email);
 			form.append("billingAddress", billingAddress);
 			form.append("additionalNotes", additionalNotes);
 			form.append("deliveryMethod", deliveryMethod);
@@ -167,29 +175,21 @@ class Order {
 				}
 			}
 
-			// Console output: show a JSON-friendly snapshot of the request and FormData entries
-			const debugPayload = {
-				customerId,
-				customerName: name,
-				customerPhone: phone,
-				billingAddress,
-				additionalNotes,
-				deliveryMethod,
-				orderItems,
-				courierId,
-				courierAddress,
-				staffId,
-				couponId,
-				designFiles: designFiles.map((f) => f.name),
-			};
-			console.debug("OrderService.createOrderRequest - payload:", debugPayload);
-			try {
-				for (const pair of (form as any).entries()) {
-					console.debug("FormData entry:", pair[0], pair[1]);
-				}
-			} catch (e) {
-				// ignore
-			}
+			// Optional: minimal debug snapshot (omit heavy FormData iteration)
+			// console.debug("OrderService.createOrderRequest - payload:", {
+			//   customerId,
+			//   customerName: name,
+			//   customerPhone: phone,
+			//   billingAddress,
+			//   additionalNotes,
+			//   deliveryMethod,
+			//   orderItems,
+			//   courierId,
+			//   courierAddress,
+			//   staffId,
+			//   couponId,
+			//   designFiles: designFiles.map((f) => f.name),
+			// });
 
 			// Let axios/browser set the Content-Type (with correct boundary) for FormData
 			const response = await apiClient.post(this.orderRequestCreateUrl, form, {
@@ -200,32 +200,23 @@ class Order {
 
 			// (Previously printed FormData entries here — removed duplicate)
 			return response.data;
-		} catch (err: any) {
-			let fetchRequestError: ApiError;
-
+		} catch (err: unknown) {
+			let fetchRequestError: ApiError = {
+				name: "Error",
+				message: "An unknown error occured.",
+				error: err as Error,
+				status: undefined,
+			};
 			if (err instanceof AxiosError) {
+				const data = (err.response?.data || {}) as AxiosErrorData;
 				fetchRequestError = {
 					name: err.name || "AxiosError",
-					status:
-						err.response?.data?.status ||
-						err.response?.data?.status ||
-						err.status,
-					message:
-						err.response?.data?.message ||
-						err.response?.data?.error ||
-						err.message,
+					status: data.status ?? err.status,
+					message: data.message || data.error || err.message,
 					error: err,
-				};
-				throw fetchRequestError;
-			} else {
-				fetchRequestError = err.response.data || err.response.data.error;
-				fetchRequestError.status = err.response.data.status;
-				fetchRequestError.message =
-					fetchRequestError.message ||
-					fetchRequestError.error.message ||
-					"An unknown error occured.";
-				throw fetchRequestError;
+				} as ApiError;
 			}
+			throw fetchRequestError;
 		}
 	};
 
@@ -240,32 +231,23 @@ class Order {
 				}
 			);
 			return response.data;
-		} catch (err: any) {
-			let fetchRequestError: ApiError;
-
+		} catch (err: unknown) {
+			let fetchRequestError: ApiError = {
+				name: "Error",
+				message: "An unknown error occured.",
+				error: err as Error,
+				status: undefined,
+			};
 			if (err instanceof AxiosError) {
+				const data = (err.response?.data || {}) as AxiosErrorData;
 				fetchRequestError = {
 					name: err.name || "AxiosError",
-					status:
-						err.response?.data?.status ||
-						err.response?.data?.status ||
-						err.status,
-					message:
-						err.response?.data?.message ||
-						err.response?.data?.error ||
-						err.message,
+					status: data.status ?? err.status,
+					message: data.message || data.error || err.message,
 					error: err,
-				};
-				throw fetchRequestError;
-			} else {
-				fetchRequestError = err.response.data || err.response.data.error;
-				fetchRequestError.status = err.response.data.status;
-				fetchRequestError.message =
-					fetchRequestError.message ||
-					fetchRequestError.error.message ||
-					"An unknown error occured.";
-				throw fetchRequestError;
+				} as ApiError;
 			}
+			throw fetchRequestError;
 		}
 	};
 }

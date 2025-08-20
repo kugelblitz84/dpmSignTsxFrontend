@@ -10,9 +10,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Eye, EyeClosed } from "lucide-react";
 import { customerService } from "@/api";
+import axios from "axios";
 import { useFormValidation } from "@/hooks/use-form-validation";
 import { LoadingOverlay } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
@@ -33,7 +34,21 @@ interface RegistrationFormProps {
 	password: string;
 }
 
-export const LoginRegistrationForm = () => {
+type DefaultTab = "login" | "registration";
+
+interface LoginRegistrationFormPropsExtra {
+	defaultTab?: DefaultTab;
+	initialLoginEmail?: string;
+	initialRegistration?: Partial<RegistrationFormProps>;
+	onSuccess?: () => void; // called after successful auth
+}
+
+export const LoginRegistrationForm = ({
+	defaultTab = "login",
+	initialLoginEmail = "",
+	initialRegistration,
+	onSuccess,
+}: LoginRegistrationFormPropsExtra) => {
 	const { toast } = useToast();
 
 	const { login } = useAuth();
@@ -58,16 +73,42 @@ export const LoginRegistrationForm = () => {
 	} = useFormValidation(customerService.registrationSchema);
 
 	const [loginFormData, setLoginFormData] = useState<LoginFormProps>({
-		email: "",
+		email: initialLoginEmail || "",
 		password: "",
 	});
 	const [registrationFormData, setRegistrationFormData] =
 		useState<RegistrationFormProps>({
-			name: "",
-			email: "",
-			phone: "",
+			name: initialRegistration?.name || "",
+			email: initialRegistration?.email || "",
+			phone: initialRegistration?.phone || "",
 			password: "",
 		});
+	const [tabValue, setTabValue] = useState<DefaultTab>(defaultTab);
+
+	// Keep form and tab in sync with incoming props from modal openers
+	// Update tab when defaultTab changes
+	// Update forms when initial prefill values change
+	// This prevents stale tab/content (e.g., stuck on Login)
+	useEffect(() => {
+		setTabValue(defaultTab);
+	}, [defaultTab]);
+
+	useEffect(() => {
+		setLoginFormData((prev) => ({ ...prev, email: initialLoginEmail || "" }));
+	}, [initialLoginEmail]);
+
+	useEffect(() => {
+		setRegistrationFormData((prev) => ({
+			...prev,
+			name: initialRegistration?.name || "",
+			email: initialRegistration?.email || "",
+			phone: initialRegistration?.phone || "",
+		}));
+	}, [
+		initialRegistration?.name,
+		initialRegistration?.email,
+		initialRegistration?.phone,
+	]);
 
 	const handleLoginFormData = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const { name, value } = e.target;
@@ -114,14 +155,16 @@ export const LoginRegistrationForm = () => {
 				});
 
 				login(result.data.authToken, result.data.customer);
+				if (onSuccess) onSuccess();
 			}
-		} catch (err: any) {
+		} catch (err: unknown) {
+			const message = err instanceof Error ? err.message : String(err);
 			setLoginFormErrors((prevErrors) => ({
 				...prevErrors,
-				global: err.message,
+				global: message,
 			}));
 			toast({
-				description: err.message,
+				description: message,
 				variant: "destructive",
 				duration: 10000,
 			});
@@ -142,32 +185,70 @@ export const LoginRegistrationForm = () => {
 				);
 				toast({
 					title: "Welcome to Dhaka Plastic & Metal",
-					description:
-						"Please verify your account using the email we've sent.",
+					description: "Please verify your account using the email we've sent.",
 					variant: "success",
 					duration: 10000,
 				});
 
 				login(result.data.authToken, result.data.customer);
+				if (onSuccess) onSuccess();
 			}
-		} catch (err: any) {
-			console.log(err.message);
-			setRegistrationFormErrors((prevErrors) => ({
-				...prevErrors,
-				global: err.message,
-			}));
-			toast({
-				description: err.message,
-				variant: "destructive",
-				duration: 10000,
-			});
+		} catch (err: unknown) {
+			// Detect backend's 'email already exists' error and switch to login with prefilled email
+			const status = axios.isAxiosError(err)
+				? err.response?.data?.status ?? err.response?.status ?? err.status
+				: undefined;
+			const message = (() => {
+				if (axios.isAxiosError(err)) {
+					const data = err.response?.data as
+						| { message?: string; error?: string }
+						| undefined;
+					return data?.message || data?.error || err.message;
+				}
+				return err instanceof Error ? err.message : String(err);
+			})();
+			const emailAlreadyExists =
+				status === 409 || // Conflict
+				status === 422 || // Unprocessable (often validation like unique)
+				/exists|already\s*registered|in use/i.test(message);
+
+			if (emailAlreadyExists) {
+				setTabValue("login");
+				setLoginFormData((prev) => ({
+					...prev,
+					email: registrationFormData.email,
+				}));
+				setRegistrationFormErrors((prev) => ({
+					...prev,
+					global: "This email is already registered. Please login instead.",
+				}));
+				toast({
+					description: "This email is already registered. Please login.",
+					variant: "destructive",
+					duration: 10000,
+				});
+			} else {
+				setRegistrationFormErrors((prevErrors) => ({
+					...prevErrors,
+					global: message,
+				}));
+				toast({
+					description: message,
+					variant: "destructive",
+					duration: 10000,
+				});
+			}
 		} finally {
 			setLoading.close();
 		}
 	};
 
 	return (
-		<Tabs defaultValue="login" className="w-full xl:px-20">
+		<Tabs
+			value={tabValue}
+			onValueChange={(v) => setTabValue(v as DefaultTab)}
+			className="w-full xl:px-20"
+		>
 			<TabsList className="grid w-full grid-cols-2 h-auto">
 				<TabsTrigger className="text-lg" value="login">
 					Login
@@ -187,8 +268,7 @@ export const LoginRegistrationForm = () => {
 					<CardHeader className="text-center">
 						<CardTitle className="text-2xl">Login</CardTitle>
 						<CardDescription className="text-base lg:text-lg">
-							Make changes to your account here. Click save when
-							you're done.
+							Make changes to your account here. Click save when you're done.
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-3">
@@ -225,33 +305,25 @@ export const LoginRegistrationForm = () => {
 							</Label>
 							<div className="flex w-full items-center space-x-2 relative">
 								<Input
-									type={
-										showLoginPassword ? "text" : "password"
-									}
+									type={showLoginPassword ? "text" : "password"}
 									name="password"
 									id="password"
 									placeholder="your password"
 									value={loginFormData.password}
 									onChange={handleLoginFormData}
-									error={
-										loginFormErrors.password ? true : false
-									}
+									error={loginFormErrors.password ? true : false}
 								/>
 								{showLoginPassword ? (
 									<EyeClosed
 										size={20}
 										className="cursor-pointer text-gray absolute right-5"
-										onClick={() =>
-											setShowLoginPassword(false)
-										}
+										onClick={() => setShowLoginPassword(false)}
 									/>
 								) : (
 									<Eye
 										size={20}
 										className="cursor-pointer text-gray absolute right-5"
-										onClick={() =>
-											setShowLoginPassword(true)
-										}
+										onClick={() => setShowLoginPassword(true)}
 									/>
 								)}
 							</div>
@@ -293,8 +365,7 @@ export const LoginRegistrationForm = () => {
 					<CardHeader className="text-center">
 						<CardTitle className="text-2xl">Registration</CardTitle>
 						<CardDescription className="text-base lg:text-lg">
-							Change your password here. After saving, you'll be
-							logged out.
+							Change your password here. After saving, you'll be logged out.
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-3">
@@ -312,9 +383,7 @@ export const LoginRegistrationForm = () => {
 								name="name"
 								value={registrationFormData.name}
 								onChange={handleRegistrationFormData}
-								error={
-									registrationFormErrors.name ? true : false
-								}
+								error={registrationFormErrors.name ? true : false}
 							/>
 							{registrationFormErrors.name && (
 								<p className="text-rose-500 font-semibold text-sm">
@@ -336,9 +405,7 @@ export const LoginRegistrationForm = () => {
 								name="email"
 								value={registrationFormData.email}
 								onChange={handleRegistrationFormData}
-								error={
-									registrationFormErrors.email ? true : false
-								}
+								error={registrationFormErrors.email ? true : false}
 							/>
 							{registrationFormErrors.email && (
 								<p className="text-rose-500 font-semibold text-sm">
@@ -360,9 +427,7 @@ export const LoginRegistrationForm = () => {
 								name="phone"
 								value={registrationFormData.phone}
 								onChange={handleRegistrationFormData}
-								error={
-									registrationFormErrors.phone ? true : false
-								}
+								error={registrationFormErrors.phone ? true : false}
 							/>
 							{registrationFormErrors.phone && (
 								<p className="text-rose-500 font-semibold text-sm">
@@ -380,37 +445,25 @@ export const LoginRegistrationForm = () => {
 							</Label>
 							<div className="flex w-full items-center space-x-2 relative">
 								<Input
-									type={
-										showRegisterPassword
-											? "text"
-											: "password"
-									}
+									type={showRegisterPassword ? "text" : "password"}
 									id="password"
 									placeholder="your password"
 									name="password"
 									value={registrationFormData.password}
 									onChange={handleRegistrationFormData}
-									error={
-										registrationFormErrors.password
-											? true
-											: false
-									}
+									error={registrationFormErrors.password ? true : false}
 								/>
 								{showRegisterPassword ? (
 									<EyeClosed
 										size={20}
 										className="cursor-pointer text-gray absolute right-5"
-										onClick={() =>
-											setShowRegisterPassword(false)
-										}
+										onClick={() => setShowRegisterPassword(false)}
 									/>
 								) : (
 									<Eye
 										size={20}
 										className="cursor-pointer text-gray absolute right-5"
-										onClick={() =>
-											setShowRegisterPassword(true)
-										}
+										onClick={() => setShowRegisterPassword(true)}
 									/>
 								)}
 							</div>

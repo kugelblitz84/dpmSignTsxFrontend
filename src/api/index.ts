@@ -38,7 +38,8 @@ export const apiClient = axios.create({
 	baseURL: apiBaseURL,
 	headers: {
 		"X-API-Key": apiKey,
-		"Content-Type": "application/json",
+		// Do NOT set a global Content-Type. Let Axios infer it per-request
+		// so FormData gets the correct multipart boundary automatically.
 	},
 });
 
@@ -47,7 +48,8 @@ export const ping = async () => {
 		console.log(apiBaseURL);
 		const response = await apiClient.get("/health");
 		console.log(response.data);
-	} catch (err: any) {
-		console.log(err.message);
+	} catch (err: unknown) {
+		const message = err instanceof Error ? err.message : String(err);
+		console.log(message);
 	}
 };

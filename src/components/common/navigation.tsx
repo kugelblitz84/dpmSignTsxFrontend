@@ -331,7 +331,16 @@ const CartMenuItem = () => {
 		try {
 			setLoading(true);
 			if (!token) {
-				// navigate(routes.products.path);
+				// Guest cart removal via localStorage by synthetic negative id
+				const guest = JSON.parse(localStorage.getItem("guestCart") || "[]");
+				if (cartItemId < 0) {
+					const idx = Math.abs(cartItemId) - 1;
+					if (idx >= 0 && idx < guest.length) {
+						guest.splice(idx, 1);
+						localStorage.setItem("guestCart", JSON.stringify(guest));
+					}
+				}
+				await fetchCartItems();
 				return;
 			}
 
@@ -345,7 +354,6 @@ const CartMenuItem = () => {
 			await fetchCartItems();
 
 			if (cartItems.length === 0) {
-				// navigate(routes.products.path);
 				return;
 			}
 		} catch (err: any) {
@@ -415,7 +423,7 @@ const CartMenuItem = () => {
 												<div className="space-y-1">
 													<div className="flex flex-wrap items-center gap-1">
 														<span className="font-medium text-black">
-															{item.product.name}
+															{item.product?.name || "Product"}
 														</span>
 														<span className="text-sm text-skyblue">
 															×{item.quantity} (pieces)
@@ -428,17 +436,22 @@ const CartMenuItem = () => {
 													</div>
 
 													<div className="text-xs text-gray flex flex-wrap gap-2">
-														{item.productVariant.variantDetails.map(
-															(detail, index) => (
-																<p
-																	className="font-semibold text-gray"
-																	key={index}
-																>
-																	{detail.variationItem.variation.name}:
-																	{detail.variationItem.value}{" "}
-																	{detail.variationItem.variation.unit}
-																</p>
-															)
+														{item.productVariant?.variantDetails?.map(
+															(detail, index) => {
+																const variation =
+																	detail?.variationItem?.variation;
+																if (!variation) return null;
+																return (
+																	<p
+																		className="font-semibold text-gray"
+																		key={index}
+																	>
+																		{variation.name}:{" "}
+																		{detail.variationItem.value}{" "}
+																		{variation.unit}
+																	</p>
+																);
+															}
 														)}
 													</div>
 												</div>

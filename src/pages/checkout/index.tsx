@@ -37,6 +37,8 @@ import {
 	couponService,
 } from "@/api";
 import { useFormValidation } from "@/hooks/use-form-validation";
+import AuthModal from "@/components/auth-modal";
+import { customerService } from "@/api";
 import { useDisclosure } from "@mantine/hooks";
 
 interface CheckoutFormProps {
@@ -79,6 +81,47 @@ export interface StaffProps {
 	updatedAt: Date;
 }
 
+// Safe utility types to render variant details for both server and guest carts
+type ProductVariationSafe = {
+	name?: string;
+	unit?: string;
+	variationItems?: Array<{ variationItemId: number }>;
+};
+
+type DetailLike = {
+	variationItem?: {
+		value?: string;
+		variation?: { name?: string; unit?: string };
+	};
+	variationItemId?: number;
+};
+
+const getVariationMeta = (
+	detail: DetailLike,
+	productVariations?: ProductVariationSafe[]
+) => {
+	let variationName = detail.variationItem?.variation?.name;
+	let variationUnit = detail.variationItem?.variation?.unit;
+	const value = detail.variationItem?.value ?? "";
+
+	if (!variationName || !variationUnit) {
+		const vid = detail.variationItemId;
+		if (vid && Array.isArray(productVariations)) {
+			const foundVar = productVariations.find((v) =>
+				v.variationItems?.some((vi) => vi.variationItemId === vid)
+			);
+			variationName = variationName || foundVar?.name;
+			variationUnit = variationUnit || foundVar?.unit;
+		}
+	}
+
+	return {
+		name: variationName || "Option",
+		unit: variationUnit || "",
+		value,
+	};
+};
+
 const Checkout = () => {
 	const { customer, token, logout } = useAuth();
 	const navigate = useNavigate();
@@ -88,36 +131,39 @@ const Checkout = () => {
 	const [couriers, setCouriers] = useState<CourierProps[]>([]);
 	const [staff, setStaff] = useState<StaffProps[]>([]);
 	const [couponCode, setCouponCode] = useState<string>("");
-	const [subtotal, _setSubtotal] = useState<number>(
-		cartItems.reduce((acc, item) => (acc += item.price), 0)
+	// Derive subtotal from cart items so it stays in sync for guests and auth users
+	const subtotal = cartItems.reduce(
+		(acc, item) => acc + Number(item?.price || 0),
+		0
 	);
 	const [total, setTotal] = useState<number>(subtotal);
 	const [discountApplied, setDiscountApplied] = useState<boolean>(false);
 	const [isAgreeTerms, setIsAgreeTerms] = useState<boolean>(false);
+	const [authModalOpen, setAuthModalOpen] = useState(false);
+	const [authModalTab, setAuthModalTab] = useState<"login" | "registration">(
+		"login"
+	);
+	const [prefillRegistration, setPrefillRegistration] = useState<{
+		name?: string;
+		email?: string;
+		phone?: string;
+	}>({});
 
 	useEffect(() => {
 		const fetchCouriers = async () => {
 			try {
-				if (!token) {
-					// navigate(routes.products.path);
-					return logout();
-				}
-
+				if (!token) return; // guests can skip fetching secure data
 				const response = await courierService.fetchAllCourier(token);
-
 				setCouriers(response.data.couriers);
-			} catch (err: any) {
-				console.log(err.message);
+			} catch (err: unknown) {
+				const message = err instanceof Error ? err.message : String(err);
+				console.log(message);
 			}
 		};
 
 		const fetchStaff = async () => {
 			try {
-				if (!token) {
-					// navigate(routes.products.path);
-					return logout();
-				}
-
+				if (!token) return; // guests skip
 				const response = await staffService.fetchAllStaff(token);
 
 				setStaff(
@@ -125,8 +171,9 @@ const Checkout = () => {
 						(staffItem: StaffProps) => !staffItem.isDeleted
 					)
 				);
-			} catch (err: any) {
-				console.log(err.message);
+			} catch (err: unknown) {
+				const message = err instanceof Error ? err.message : String(err);
+				console.log(message);
 			}
 		};
 
@@ -140,29 +187,42 @@ const Checkout = () => {
 				duration: 10000,
 			});
 		}
-	}, []);
+	}, [token, logout, toast, error]);
 
 	useEffect(() => {
 		if (!cartItems.length) {
 			navigate(routes.products.path);
 			return;
 		}
-	}, [cartItems]);
+	}, [cartItems, navigate]);
 
-	const [checkoutFormData, setCheckoutFormData] = useState<CheckoutFormProps>({
-		name: customer?.name || "",
-		email: customer?.email || "",
-		phone: customer?.phone || "",
-		billingAddress: customer?.billingAddress || "",
-		additionalNotes: "",
-		designFiles: [],
-		deliveryMethod: "",
-		courierId: null,
-		courierAddress: "",
-		// paymentMethod: "",
-		staffId: null,
-		couponId: null,
-	});
+	// Keep total aligned with subtotal unless a coupon/discount is applied
+	useEffect(() => {
+		if (!discountApplied) {
+			setTotal(subtotal);
+		}
+	}, [subtotal, discountApplied]);
+
+	const [checkoutFormData, setCheckoutFormData] = useState<CheckoutFormProps>(
+		() => {
+			const saved = localStorage.getItem("guestCheckout");
+			if (saved) return JSON.parse(saved);
+			return {
+				name: customer?.name || "",
+				email: customer?.email || "",
+				phone: customer?.phone || "",
+				billingAddress: customer?.billingAddress || "",
+				additionalNotes: "",
+				designFiles: [],
+				deliveryMethod: "",
+				courierId: null,
+				courierAddress: "",
+				// paymentMethod: "",
+				staffId: null,
+				couponId: null,
+			} as CheckoutFormProps;
+		}
+	);
 	const { errors, validateField, validateForm, setErrors } = useFormValidation(
 		orderService.orderRequestCreateSchema
 	);
@@ -173,13 +233,51 @@ const Checkout = () => {
 		const { name, value } = e.target;
 
 		validateField(name, value);
-		if (name !== "payment") {
-		}
+		// no-op placeholder kept for potential payment field branching
 
 		setCheckoutFormData((prevData) => ({
 			...prevData,
 			[name]: value,
 		}));
+		// persist for guests
+		setTimeout(() => {
+			localStorage.setItem(
+				"guestCheckout",
+				JSON.stringify({
+					...checkoutFormData,
+					[name]: value,
+				})
+			);
+		});
+	};
+
+	// When name or email is blurred, optionally check if email exists to decide login vs registration
+	const handleBlur = async (
+		e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+	) => {
+		const { name } = e.target;
+		if (name !== "email" && name !== "name") return;
+		const email = checkoutFormData.email?.trim();
+		const nameVal = checkoutFormData.name?.trim();
+		if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+		try {
+			const res = await customerService.checkEmailExists(email);
+			if (res?.exists) {
+				// Email registered: prepare login tab with email prefilled
+				setAuthModalTab("login");
+				setPrefillRegistration({});
+				setAuthModalOpen(true);
+			} else {
+				// New email: always take to registration with email, include name if provided
+				setAuthModalTab("registration");
+				setPrefillRegistration(nameVal ? { name: nameVal, email } : { email });
+				setAuthModalOpen(true);
+			}
+		} catch (err: unknown) {
+			// Non-blocking; just log
+			const msg = err instanceof Error ? err.message : String(err);
+			console.log("checkEmailExists failed:", msg);
+		}
 	};
 
 	const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -193,6 +291,7 @@ const Checkout = () => {
 				...checkoutFormData,
 				designFiles: [...checkoutFormData.designFiles, ...files],
 			});
+			// do not persist files to localStorage for security
 		}
 	};
 
@@ -200,9 +299,29 @@ const Checkout = () => {
 	const handleDeleteItem = async (cartItemId: number) => {
 		try {
 			setLoading(true);
-			if (!token) {
-				// navigate(routes.products.path);
-				return logout();
+			if (!token || !customer) {
+				// Guest: remove from localStorage using negative id mapping
+				const guest = JSON.parse(localStorage.getItem("guestCart") || "[]");
+				if (Array.isArray(guest)) {
+					const idx = cartItemId < 0 ? -cartItemId - 1 : -1;
+					if (idx >= 0 && idx < guest.length) {
+						guest.splice(idx, 1);
+						localStorage.setItem("guestCart", JSON.stringify(guest));
+						toast({
+							description: "Item removed from cart.",
+							variant: "success",
+							duration: 5000,
+						});
+						await fetchCartItems();
+						if (guest.length === 0) {
+							navigate(routes.products.path);
+							return;
+						}
+						return;
+					}
+				}
+				await fetchCartItems();
+				return;
 			}
 
 			const response = await cartService.deleteCartItem(token, cartItemId);
@@ -218,11 +337,12 @@ const Checkout = () => {
 				navigate(routes.products.path);
 				return;
 			}
-		} catch (err: any) {
+		} catch (err: unknown) {
 			setLoading(false);
-			console.log(err.message);
+			const message = err instanceof Error ? err.message : String(err);
+			console.log(message);
 			toast({
-				description: err.message,
+				description: message,
 				variant: "destructive",
 				duration: 10000,
 			});
@@ -249,12 +369,35 @@ const Checkout = () => {
 			}
 
 			if (isValid) {
-				setRequestOrderLoading.open();
-
+				// If guest, open auth modal (login or registration based on email)
 				if (!token || !customer) {
-					// navigate(routes.products.path);
-					return logout();
+					localStorage.setItem(
+						"guestCheckout",
+						JSON.stringify(checkoutFormData)
+					);
+					const email = checkoutFormData.email?.trim();
+					const nameVal = checkoutFormData.name?.trim();
+					if (email) {
+						try {
+							const res = await customerService.checkEmailExists(email);
+							if (res?.exists) {
+								setAuthModalTab("login");
+								setPrefillRegistration({});
+							} else {
+								setAuthModalTab("registration");
+								setPrefillRegistration({ name: nameVal, email });
+							}
+						} catch {
+							setAuthModalTab("login");
+						}
+					} else {
+						setAuthModalTab("login");
+					}
+					setAuthModalOpen(true);
+					return;
 				}
+
+				setRequestOrderLoading.open();
 
 				const orderItems = cartItems.map(
 					({
@@ -276,34 +419,35 @@ const Checkout = () => {
 					})
 				);
 
-		// Use a local variable to ensure we send the most recent staffId
-		const staffIdToSend =
-			checkoutFormData.staffId === null
-				? null
-				: Number(checkoutFormData.staffId);
-		// console.debug("Checkout: sending staffId ->", staffIdToSend);
-		// toast({
-		// 	description: `Staff Id: ${staffIdToSend}`,
-		// 	variant: "success",
-		// 	duration: 10000,
-		// });
+				// Use a local variable to ensure we send the most recent staffId
+				const staffIdToSend =
+					checkoutFormData.staffId === null
+						? null
+						: Number(checkoutFormData.staffId);
+				// console.debug("Checkout: sending staffId ->", staffIdToSend);
+				// toast({
+				// 	description: `Staff Id: ${staffIdToSend}`,
+				// 	variant: "success",
+				// 	duration: 10000,
+				// });
 
-		const response = await orderService.createOrderRequest(
-			token,
-			customer.customerId,
-			checkoutFormData.name,
-			checkoutFormData.phone,
-			checkoutFormData.billingAddress,
-			checkoutFormData.additionalNotes,
-			checkoutFormData.designFiles,
-			checkoutFormData.deliveryMethod,
-			checkoutFormData.courierId,
-			checkoutFormData.courierAddress,
-			staffIdToSend,
-			checkoutFormData.couponId,
-			// checkoutFormData.paymentMethod,
-			orderItems
-		);
+				const response = await orderService.createOrderRequest(
+					token,
+					customer.customerId,
+					checkoutFormData.name,
+					checkoutFormData.email,
+					checkoutFormData.phone,
+					checkoutFormData.billingAddress,
+					checkoutFormData.additionalNotes,
+					checkoutFormData.designFiles,
+					checkoutFormData.deliveryMethod,
+					checkoutFormData.courierId,
+					checkoutFormData.courierAddress,
+					staffIdToSend,
+					checkoutFormData.couponId,
+					// checkoutFormData.paymentMethod,
+					orderItems
+				);
 
 				if (response.status === 201) {
 					toast({
@@ -315,12 +459,14 @@ const Checkout = () => {
 				}
 				navigate(routes.products.path);
 				await fetchCartItems();
+				localStorage.removeItem("guestCheckout");
 			}
-		} catch (err: any) {
+		} catch (err: unknown) {
 			setRequestOrderLoading.close();
-			console.log(err.message);
+			const message = err instanceof Error ? err.message : String(err);
+			console.log(message);
 			toast({
-				description: err.message,
+				description: message,
 				variant: "destructive",
 				duration: 10000,
 			});
@@ -350,11 +496,12 @@ const Checkout = () => {
 					});
 				}
 			}
-		} catch (err: any) {
+		} catch (err: unknown) {
 			setCouponCode("");
-			console.log(err.message);
+			const message = err instanceof Error ? err.message : String(err);
+			console.log(message);
 			toast({
-				description: err.message,
+				description: message,
 				variant: "destructive",
 				duration: 10000,
 			});
@@ -363,6 +510,18 @@ const Checkout = () => {
 
 	return (
 		<div className="row p-6 lg:p-10 bg-gray-50 relative">
+			<AuthModal
+				open={authModalOpen}
+				onOpenChange={setAuthModalOpen}
+				defaultTab={authModalTab}
+				initialLoginEmail={checkoutFormData.email}
+				initialRegistration={prefillRegistration}
+				onSuccess={async () => {
+					setAuthModalOpen(false);
+					// After successful auth, refresh cart to server cart (if applicable)
+					await fetchCartItems();
+				}}
+			/>
 			{requestOrderLoading && (
 				<>
 					<LoadingOverlay
@@ -394,6 +553,7 @@ const Checkout = () => {
 											name="name"
 											value={checkoutFormData.name}
 											onChange={handleChange}
+											onBlur={handleBlur}
 											error={errors.name ? true : false}
 										/>
 
@@ -415,9 +575,10 @@ const Checkout = () => {
 											type="email"
 											id="email"
 											name="email"
-											readOnly={true}
+											readOnly={false}
 											value={checkoutFormData.email}
-											// onChange={handleChange}
+											onChange={handleChange}
+											onBlur={handleBlur}
 										/>
 									</div>
 
@@ -624,7 +785,7 @@ const Checkout = () => {
 																	key={index}
 																	value={courier.courierId.toString()}
 																>
-																	{courier.name}
+																	{courier?.name || "Courier"}
 																</SelectItem>
 															))}
 														</SelectGroup>
@@ -694,7 +855,7 @@ const Checkout = () => {
 															key={index}
 															value={staffItem.staffId.toString()}
 														>
-															{staffItem.name}
+															{staffItem?.name || "Staff"}
 														</SelectItem>
 													))}
 												</SelectGroup>
@@ -778,7 +939,7 @@ const Checkout = () => {
 											<div className="space-y-1">
 												<div className="flex flex-wrap items-center gap-1">
 													<span className="font-medium text-black">
-														{item.product.name}
+														{item.product?.name || "Product"}
 													</span>
 													<span className="text-sm text-skyblue">
 														×{item.quantity} (pieces)
@@ -791,17 +952,22 @@ const Checkout = () => {
 												</div>
 
 												<div className="text-xs text-gray flex flex-wrap gap-2">
-													{item.productVariant.variantDetails.map(
-														(detail, index) => (
-															<p
-																className="font-semibold text-gray"
-																key={index}
-															>
-																{detail.variationItem.variation.name}:
-																{detail.variationItem.value}{" "}
-																{detail.variationItem.variation.unit}
-															</p>
-														)
+													{(item.productVariant?.variantDetails || []).map(
+														(detail, idx2) => {
+															const meta = getVariationMeta(
+																detail as unknown as DetailLike,
+																item.product
+																	?.variations as unknown as ProductVariationSafe[]
+															);
+															return (
+																<p
+																	className="font-semibold text-gray"
+																	key={idx2}
+																>
+																	{meta.name}: {meta.value} {meta.unit}
+																</p>
+															);
+														}
 													)}
 												</div>
 											</div>
@@ -809,7 +975,8 @@ const Checkout = () => {
 											<div className="flex flex-col justify-between items-end">
 												<div className="text-right">
 													<h5 className="text-lg font-semibold text-black">
-														{currencySymbol} {formatPrice(item.price)}
+														{currencySymbol}{" "}
+														{formatPrice(Number(item?.price || 0))}
 													</h5>
 												</div>
 

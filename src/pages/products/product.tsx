@@ -45,7 +45,7 @@ import { LoadingOverlay } from "@mantine/core";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 const Product = () => {
-	const { token, customer, logout } = useAuth();
+	const { token, customer } = useAuth();
 	const {
 		fetchCartItems,
 		loading: cartLoading,
@@ -271,19 +271,51 @@ const Product = () => {
 	}, [product]);
 
 	const handleAddToCart = async () => {
+		setCartLoading(true);
 		try {
-			setCartLoading(true);
-
 			if (product && productQuantity < product?.minOrderQuantity) {
 				throw new Error(
 					`You must order minimum ${product?.minOrderQuantity} pieces.`
 				);
 			} else if (product && matchedVariant && totalPrice && productQuantity) {
 				if (!token || !customer) {
-					throw new Error(
-						`Please login or registration to add this product in your cart.`
+					// Guest: Add to localStorage cart
+					const guestCart = JSON.parse(
+						localStorage.getItem("guestCart") || "[]"
 					);
+					guestCart.push({
+						productId: product.productId,
+						product,
+						productVariantId: matchedVariant.productVariantId,
+						productVariant: matchedVariant,
+						quantity: productQuantity,
+						size: product.pricingType === "square-feet" ? sqFeet : null,
+						widthInch:
+							product.pricingType === "square-feet"
+								? unit === "feet"
+									? width * 12
+									: width
+								: null,
+						heightInch:
+							product.pricingType === "square-feet"
+								? unit === "feet"
+									? height * 12
+									: height
+								: null,
+						price: totalPrice,
+						createdAt: new Date(),
+						deletedAt: null,
+					});
+					localStorage.setItem("guestCart", JSON.stringify(guestCart));
+					toast({
+						description: "Added to cart! (Guest)",
+						variant: "success",
+						duration: 5000,
+					});
+					setCartLoading(false);
+					return;
 				}
+				// Authenticated: Add to server cart
 				const response = await cartService.addItemToCart(
 					token,
 					customer.customerId,
@@ -317,26 +349,15 @@ const Product = () => {
 				);
 				setWidth(12);
 				setHeight(12);
-				setSqFeet(calculateSquareFeet(12, 12)); // Recalculate sqFeet with default width/height
+				setSqFeet(calculateSquareFeet(12, 12));
 				setProductQuantity(product?.minOrderQuantity || 1);
 				await fetchCartItems();
 			}
-		} catch (err: any) {
+		} catch (err: unknown) {
 			setCartLoading(false);
-			console.log(err.message);
-
-			if (err.status === 401) {
-				toast({
-					description: "Session expired. Please login.",
-					variant: "destructive",
-					duration: 10000,
-				});
-				logout();
-				return;
-			}
-
+			const message = err instanceof Error ? err.message : String(err);
 			toast({
-				description: err.message,
+				description: message,
 				variant: "destructive",
 				duration: 10000,
 			});
@@ -903,14 +924,13 @@ const Product = () => {
 										<Button
 											className="w-36 text-sm lg:text-lg lg:w-44 xl:text-xl xl:w-60"
 											onClick={() => {
-												handleAddToCart().then(() => {
-													navigate(routes.checkout.path);
-													window.scrollTo(0, 0);
-													toast({
-														description: "Redirecting to cart...",
-														variant: "default",
-														duration: 2000,
-													});
+												handleAddToCart();
+												navigate(routes.checkout.path);
+												window.scrollTo(0, 0);
+												toast({
+													description: "Redirecting to checkout...",
+													variant: "default",
+													duration: 2000,
 												});
 											}}
 											disabled={matchedVariant ? false : true}

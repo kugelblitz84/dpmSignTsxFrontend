@@ -161,14 +161,7 @@ const App = () => {
 										</ProtectedRoute>
 									}
 								/>
-								<Route
-									path={routes.checkout.path}
-									element={
-										<ProtectedRoute redirectPath={routes.home.path}>
-											<Checkout />
-										</ProtectedRoute>
-									}
-								/>
+								<Route path={routes.checkout.path} element={<Checkout />} />
 								<Route
 									path={routes.returnPolicy.path}
 									element={<ReturnPolicy />}

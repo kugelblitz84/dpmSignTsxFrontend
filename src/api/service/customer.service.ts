@@ -1,7 +1,18 @@
 import Joi from "joi";
 import { apiBaseURL } from "@/lib/dotenv";
 import { apiClient, ApiError } from "@/api/";
-import { AxiosError } from "axios";
+import axios from "axios";
+
+// Helper to safely extract a human-readable error message
+const getErrorMessage = (err: unknown, fallback: string) => {
+	if (axios.isAxiosError(err)) {
+		const r = err.response as
+			| { data?: { message?: string; error?: string; status?: number } }
+			| undefined;
+		return r?.data?.message || r?.data?.error || err.message || fallback;
+	}
+	return err instanceof Error ? err.message : fallback;
+};
 
 class Customer {
 	private schema: {
@@ -20,6 +31,7 @@ class Customer {
 	private requestResetPasswordUrl: string;
 	private verifyResetPasswordUrl: string;
 	private resetPasswordUrl: string;
+	private checkEmailUrl: string;
 	public loginSchema: Joi.ObjectSchema;
 	public registrationSchema: Joi.ObjectSchema;
 	public resetPasswordSchema: Joi.ObjectSchema;
@@ -90,6 +102,7 @@ class Customer {
 		this.requestResetPasswordUrl = `${apiBaseURL}/customer/reset-password-request`;
 		this.verifyResetPasswordUrl = `${apiBaseURL}/customer/reset-password-verify`;
 		this.resetPasswordUrl = `${apiBaseURL}/customer/reset-password`;
+		this.checkEmailUrl = `${apiBaseURL}/customer/check-email`;
 
 		this.loginSchema = Joi.object({
 			email: this.schema.email,
@@ -130,9 +143,10 @@ class Customer {
 			};
 			const response = await apiClient.post(this.loginUrl, body);
 			return response.data;
-		} catch (err: any) {
-			console.log(err.response.data.message || err.response.data.error);
-			throw new Error(err.response.data.message || err.response.data.error);
+		} catch (err: unknown) {
+			const message = getErrorMessage(err, "Login failed.");
+			console.log(message);
+			throw new Error(message);
 		}
 	};
 
@@ -151,9 +165,26 @@ class Customer {
 			};
 			const response = await apiClient.post(this.registerUrl, body);
 			return response.data;
-		} catch (err: any) {
-			console.log(err.response.data.message || err.response.data.error);
-			throw new Error(err.response.data.message || err.response.data.error);
+		} catch (err: unknown) {
+			if (axios.isAxiosError(err)) {
+				const data = err.response?.data as
+					| { message?: string; error?: string; status?: number }
+					| undefined;
+				const apiErr: ApiError = {
+					name: err.name || "AxiosError",
+					message:
+						data?.message ||
+						data?.error ||
+						err.message ||
+						"Registration failed.",
+					status: data?.status ?? err.response?.status ?? err.status,
+					error: err,
+				};
+				throw apiErr;
+			}
+			const message = getErrorMessage(err, "Registration failed.");
+			console.log(message);
+			throw new Error(message);
 		}
 	};
 
@@ -182,32 +213,26 @@ class Customer {
 				},
 			});
 			return response.data;
-		} catch (err: any) {
-			let updateProfileError: ApiError;
+		} catch (err: unknown) {
+			let updateProfileError: ApiError = {
+				name: "UpdateProfileError",
+				message: "Failed to update profile.",
+				error: err instanceof Error ? err : new Error("Unknown error"),
+				status: undefined,
+			};
 
-			if (err instanceof AxiosError) {
+			if (axios.isAxiosError(err)) {
+				const data = err.response?.data as
+					| { message?: string; error?: string; status?: number }
+					| undefined;
 				updateProfileError = {
 					name: err.name || "AxiosError",
-					status:
-						err.response?.data?.status ||
-						err.response?.data?.status ||
-						err.status,
-					message:
-						err.response?.data?.message ||
-						err.response?.data?.error ||
-						err.message,
+					status: data?.status ?? err.response?.status ?? err.status,
+					message: data?.message || data?.error || err.message,
 					error: err,
 				};
-				throw updateProfileError;
-			} else {
-				updateProfileError = err.response.data || err.response.data.error;
-				updateProfileError.status = err.response.data.status;
-				updateProfileError.message =
-					updateProfileError.message ||
-					updateProfileError.error.message ||
-					"An unknown error occured.";
-				throw updateProfileError;
 			}
+			throw updateProfileError;
 		}
 	};
 
@@ -218,9 +243,10 @@ class Customer {
 			};
 			const response = await apiClient.post(this.requestResetPasswordUrl, body);
 			return response.data;
-		} catch (err: any) {
-			console.log(err.response.data.message || err.response.data.error);
-			throw new Error(err.response.data.message || err.response.data.error);
+		} catch (err: unknown) {
+			const message = getErrorMessage(err, "Request failed.");
+			console.log(message);
+			throw new Error(message);
 		}
 	};
 
@@ -232,9 +258,10 @@ class Customer {
 			};
 			const response = await apiClient.post(this.verifyResetPasswordUrl, body);
 			return response.data;
-		} catch (err: any) {
-			console.log(err.response.data.message || err.response.data.error);
-			throw new Error(err.response.data.message || err.response.data.error);
+		} catch (err: unknown) {
+			const message = getErrorMessage(err, "Verification failed.");
+			console.log(message);
+			throw new Error(message);
 		}
 	};
 
@@ -246,9 +273,23 @@ class Customer {
 			};
 			const response = await apiClient.post(this.resetPasswordUrl, body);
 			return response.data;
-		} catch (err: any) {
-			console.log(err.response.data.message || err.response.data.error);
-			throw new Error(err.response.data.message || err.response.data.error);
+		} catch (err: unknown) {
+			const message = getErrorMessage(err, "Reset failed.");
+			console.log(message);
+			throw new Error(message);
+		}
+	};
+
+	// Check if an email is already registered
+	checkEmailExists = async (email: string): Promise<{ exists: boolean }> => {
+		try {
+			const response = await apiClient.get(
+				`${this.checkEmailUrl}?email=${encodeURIComponent(email)}`
+			);
+			return response.data;
+		} catch (err: unknown) {
+			const message = getErrorMessage(err, "Failed to check email.");
+			throw new Error(message);
 		}
 	};
 }

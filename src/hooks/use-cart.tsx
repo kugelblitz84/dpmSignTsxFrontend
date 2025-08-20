@@ -1,9 +1,11 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, {
 	createContext,
 	useContext,
 	useEffect,
 	useMemo,
 	useState,
+	useCallback,
 } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { cartService } from "@/api";
@@ -60,12 +62,55 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
 	const [error, setError] = useState<string | null>(null);
 	const { customer, token } = useAuth();
 
-	const fetchCartItems = async () => {
+	const fetchCartItems = useCallback(async () => {
 		if (loading) return;
 		setLoading(true);
 		setError(null);
 		try {
 			if (!token || !customer) {
+				// Load guest cart from localStorage
+				const guest = JSON.parse(localStorage.getItem("guestCart") || "[]");
+				type GuestItem = {
+					productId: number;
+					product: ProductProps;
+					productVariantId: number;
+					productVariant: {
+						productVariantId: number;
+						productId: number;
+						additionalPrice: number;
+						variantDetails: {
+							productVariantDetailId: number;
+							productVariantId: number;
+							variationItemId: number;
+							variationItem: {
+								value: string;
+								variation: { name: string; unit: string };
+							};
+						}[];
+					};
+					quantity: number;
+					size?: number | null;
+					widthInch?: number | null;
+					heightInch?: number | null;
+					price: number;
+					createdAt?: string | number | Date;
+				};
+				const mapped = (guest as GuestItem[]).map((it, idx: number) => ({
+					cartItemId: -(idx + 1),
+					customerId: 0,
+					productId: it.productId,
+					product: it.product,
+					productVariantId: it.productVariantId,
+					productVariant: it.productVariant,
+					quantity: it.quantity,
+					size: it.size ?? null,
+					widthInch: it.widthInch ?? null,
+					heightInch: it.heightInch ?? null,
+					price: Number(it.price),
+					createdAt: new Date(it.createdAt || Date.now()),
+					deletedAt: new Date(0),
+				}));
+				setCartItems(mapped);
 				return;
 			}
 			const response = await cartService.fetchAllCartItems(
@@ -82,19 +127,18 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
 			);
 
 			setCartItems(updatedCartItems);
-		} catch (err: any) {
-			setError(err.message || "Failed to fetch cart items.");
+		} catch (err: unknown) {
+			const message = err instanceof Error ? err.message : String(err);
+			setError(message || "Failed to fetch cart items.");
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, [loading, token, customer]);
 
 	useEffect(() => {
-		if (token) {
-			fetchCartItems();
-		} else {
-			setCartItems([]);
-		}
+		fetchCartItems();
+		// Re-run when auth state changes to swap between guest/server carts
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [token]);
 
 	const value = useMemo(
@@ -106,7 +150,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
 			error,
 			fetchCartItems,
 		}),
-		[cartItems, token, loading, error]
+		[cartItems, loading, error, fetchCartItems]
 	);
 
 	return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
