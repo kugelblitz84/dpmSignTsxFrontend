@@ -63,7 +63,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
 	const { customer, token } = useAuth();
 
 	const fetchCartItems = useCallback(async () => {
-		if (loading) return;
+		// Prevent duplicate server fetches, but allow guest refreshes even if loading
+		if (loading && token && customer) return;
 		setLoading(true);
 		setError(null);
 		try {

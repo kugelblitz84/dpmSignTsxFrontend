@@ -307,6 +307,8 @@ const Product = () => {
 						deletedAt: null,
 					});
 					localStorage.setItem("guestCart", JSON.stringify(guestCart));
+					// Refresh cart context to reflect guest cart changes without reload
+					await fetchCartItems();
 					toast({
 						description: "Added to cart! (Guest)",
 						variant: "success",
