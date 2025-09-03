@@ -59,6 +59,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 	useEffect(() => {
 		if (navigateTo) {
 			navigate(navigateTo);
+			setNavigateTo(""); // Clear the navigation state after navigating
 		}
 	}, [navigateTo, navigate]);
 

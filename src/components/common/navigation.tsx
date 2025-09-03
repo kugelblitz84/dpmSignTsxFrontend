@@ -400,7 +400,7 @@ const CartMenuItem = () => {
 						</SheetTitle>
 						<SheetDescription>
 							{cartItems.length === 0 && (
-								<p className="text-sm font-semibold">
+								<span className="text-sm font-semibold">
 									Please visit{" "}
 									<Link
 										to={routes.products.path}
@@ -409,7 +409,7 @@ const CartMenuItem = () => {
 										Our Products
 									</Link>{" "}
 									to add product in your cart.
-								</p>
+								</span>
 							)}
 
 							{cartItems.length > 0 && (
@@ -442,14 +442,14 @@ const CartMenuItem = () => {
 																	detail?.variationItem?.variation;
 																if (!variation) return null;
 																return (
-																	<p
+																	<span
 																		className="font-semibold text-gray"
 																		key={index}
 																	>
 																		{variation.name}:{" "}
 																		{detail.variationItem.value}{" "}
 																		{variation.unit}
-																	</p>
+																	</span>
 																);
 															}
 														)}

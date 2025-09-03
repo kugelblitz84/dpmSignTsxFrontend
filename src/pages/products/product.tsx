@@ -42,7 +42,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { cartService } from "@/api";
 import { useCart } from "@/hooks/use-cart";
 import { LoadingOverlay } from "@mantine/core";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+
 
 const Product = () => {
 	const { token, customer } = useAuth();
@@ -75,16 +75,24 @@ const Product = () => {
 		product?.basePrice && product?.basePrice < 1000 ? 250 : 0
 	);
 	const [discountPercentage, setDiscountPercentage] = useState<number>(0);
-	const [width, setWidth] = useState<number>(12); // Default 12 inches
-	const [height, setHeight] = useState<number>(12); // Default 12 inches
-	const [unit, setUnit] = useState<"inches" | "feet">("inches");
+	// Width dimensions
+	const [widthFeet, setWidthFeet] = useState<number>(0);
+	const [widthInches, setWidthInches] = useState<number>(0);
+	// Height dimensions  
+	const [heightFeet, setHeightFeet] = useState<number>(0);
+	const [heightInches, setHeightInches] = useState<number>(0);
+	
+	// Calculate total dimensions in inches for backward compatibility
+	const width = widthFeet * 12 + widthInches;
+	const height = heightFeet * 12 + heightInches;
+	
 	const [sqFeet, setSqFeet] = useState<number>(
-		calculateSquareFeet(width, height)
+		calculateSquareFeet(width, height, "inches")
 	);
 
 	useEffect(() => {
-		setSqFeet(calculateSquareFeet(width, height, unit));
-	}, [width, height, unit]);
+		setSqFeet(calculateSquareFeet(width, height, "inches"));
+	}, [width, height]);
 
 	// Handles variation selection
 	const handleVariationChange = (
@@ -181,8 +189,15 @@ const Product = () => {
 	useEffect(() => {
 		if (product && matchedVariant) {
 			// The `basis` for calculateFinalPricing depends on `pricingType`
-			const basisForPricing =
-				product.pricingType === "square-feet" ? sqFeet : productQuantity;
+			let basisForPricing: number;
+			
+			if (product.pricingType === "square-feet") {
+				// For square-feet pricing, multiply sqFeet by quantity
+				basisForPricing = sqFeet * productQuantity;
+			} else {
+				// For flat pricing, just use quantity
+				basisForPricing = productQuantity;
+			}
 
 			const { appliedDiscountPercentage, discountedPriceTotal } =
 				calculateFinalPricing(product, matchedVariant, basisForPricing);
@@ -292,15 +307,11 @@ const Product = () => {
 						size: product.pricingType === "square-feet" ? sqFeet : null,
 						widthInch:
 							product.pricingType === "square-feet"
-								? unit === "feet"
-									? width * 12
-									: width
+								? width // width is already in inches
 								: null,
 						heightInch:
 							product.pricingType === "square-feet"
-								? unit === "feet"
-									? height * 12
-									: height
+								? height // height is already in inches
 								: null,
 						price: totalPrice,
 						createdAt: new Date(),
@@ -326,14 +337,10 @@ const Product = () => {
 					productQuantity,
 					product.pricingType === "square-feet" ? sqFeet : null,
 					product.pricingType === "square-feet"
-						? unit === "feet"
-							? width * 12
-							: width
+						? width // width is already in inches
 						: null,
 					product.pricingType === "square-feet"
-						? unit === "feet"
-							? height * 12
-							: height
+						? height // height is already in inches
 						: null,
 					totalPrice
 				);
@@ -349,9 +356,11 @@ const Product = () => {
 				setDesignCharge(
 					product?.basePrice && product?.basePrice < 1000 ? 250 : 0
 				);
-				setWidth(12);
-				setHeight(12);
-				setSqFeet(calculateSquareFeet(12, 12));
+				setWidthFeet(0);
+				setWidthInches(0);
+				setHeightFeet(0);
+				setHeightInches(0);
+				setSqFeet(calculateSquareFeet(0, 0, "inches"));
 				setProductQuantity(product?.minOrderQuantity || 1);
 				await fetchCartItems();
 			}
@@ -687,70 +696,89 @@ const Product = () => {
 												<div className="w-full flex gap-4 items-center">
 													<div className="flex-1 flex items-center gap-4">
 														<div className="flex-1 flex items-center gap-2">
-															<Input
-																type="number"
-																min={unit === "feet" ? 0.08 : 1} // Minimum 1 inch or 0.08 feet
-																step={unit === "feet" ? 0.01 : 1}
-																className="w-16 input-type-number"
-																value={width}
-																onChange={(e) => {
-																	if (matchedVariant) {
-																		setWidth(
-																			parseFloat(e.target.value) // Use parseFloat for decimal steps
-																		);
-																	}
-																}}
-																placeholder="Width"
-															/>
-															<span className="text-sm text-muted-foreground">
-																×
-															</span>
-															<Input
-																type="number"
-																min={unit === "feet" ? 0.08 : 1}
-																step={unit === "feet" ? 0.01 : 1}
-																className="w-16 input-type-number"
-																value={height}
-																onChange={(e) => {
-																	if (matchedVariant) {
-																		setHeight(
-																			parseFloat(e.target.value) // Use parseFloat for decimal steps
-																		);
-																	}
-																}}
-																placeholder="Height"
-															/>
-															<ToggleGroup
-																type="single"
-																value={unit}
-																onValueChange={(value) =>
-																	value && setUnit(value as "inches" | "feet")
-																}
-																className="border border-gray/50 rounded-md"
-															>
-																<ToggleGroupItem
-																	value="inches"
-																	aria-label="Toggle inches"
-																	className="px-3 text-sm"
-																>
-																	in
-																</ToggleGroupItem>
-																<ToggleGroupItem
-																	value="feet"
-																	aria-label="Toggle feet"
-																	className="px-3 text-sm"
-																>
-																	ft
-																</ToggleGroupItem>
-															</ToggleGroup>
+															{/* Width (Feet and Inches) */}
+															<div className="flex flex-col gap-1">
+																<label className="text-xs text-muted-foreground">Width (Feet and Inches)</label>
+																<div className="flex items-center gap-1">
+																	<Input
+																		type="number"
+																		min={0}
+																		className="w-12 input-type-number"
+																		value={widthFeet === 0 ? "" : widthFeet}
+																		onChange={(e) => {
+																			setWidthFeet(parseInt(e.target.value) || 0);
+																		}}
+																		placeholder="0"
+																	/>
+																	<span className="text-xs text-muted-foreground">ft</span>
+																	<Input
+																		type="number"
+																		min={0}
+																		max={11}
+																		className="w-12 input-type-number"
+																		value={widthInches === 0 ? "" : widthInches}
+																		onChange={(e) => {
+																			const value = parseInt(e.target.value) || 0;
+																			if (value >= 12) {
+																				// Convert to feet and inches
+																				const additionalFeet = Math.floor(value / 12);
+																				const remainingInches = value % 12;
+																				setWidthFeet(widthFeet + additionalFeet);
+																				setWidthInches(remainingInches);
+																			} else {
+																				setWidthInches(value);
+																			}
+																		}}
+																		placeholder="0"
+																	/>
+																	<span className="text-xs text-muted-foreground">in</span>
+																</div>
+															</div>
+															
+															<span className="text-sm text-muted-foreground">×</span>
+															
+															{/* Height (Feet and Inches) */}
+															<div className="flex flex-col gap-1">
+																<label className="text-xs text-muted-foreground">Height (Feet and Inches)</label>
+																<div className="flex items-center gap-1">
+																	<Input
+																		type="number"
+																		min={0}
+																		className="w-12 input-type-number"
+																		value={heightFeet === 0 ? "" : heightFeet}
+																		onChange={(e) => {
+																			setHeightFeet(parseInt(e.target.value) || 0);
+																		}}
+																		placeholder="0"
+																	/>
+																	<span className="text-xs text-muted-foreground">ft</span>
+																	<Input
+																		type="number"
+																		min={0}
+																		max={11}
+																		className="w-12 input-type-number"
+																		value={heightInches === 0 ? "" : heightInches}
+																		onChange={(e) => {
+																			const value = parseInt(e.target.value) || 0;
+																			if (value >= 12) {
+																				// Convert to feet and inches
+																				const additionalFeet = Math.floor(value / 12);
+																				const remainingInches = value % 12;
+																				setHeightFeet(heightFeet + additionalFeet);
+																				setHeightInches(remainingInches);
+																			} else {
+																				setHeightInches(value);
+																			}
+																		}}
+																		placeholder="0"
+																	/>
+																	<span className="text-xs text-muted-foreground">in</span>
+																</div>
+															</div>
 														</div>
 														<div className="flex items-center gap-2">
-															<span className="text-sm text-muted-foreground">
-																=
-															</span>
-															<span className="font-medium text-sm">
-																{sqFeet} sq. ft
-															</span>
+															<span className="text-sm text-muted-foreground">=</span>
+															<span className="font-medium text-sm">{sqFeet} sq. ft</span>
 														</div>
 													</div>
 												</div>
@@ -935,17 +963,29 @@ const Product = () => {
 													duration: 2000,
 												});
 											}}
-											disabled={matchedVariant ? false : true}
+											disabled={
+												!matchedVariant || 
+												(product?.pricingType === "square-feet" && (width === 0 || height === 0))
+											}
 										>
-											Send Order Request
+											{product?.pricingType === "square-feet" && (width === 0 || height === 0)
+												? "Please add dimensions"
+												: "Send Order Request"
+											}
 										</Button>
 										<Button
 											className="w-30 text-sm lg:text-lg lg:w-40 xl:text-xl xl:w-52"
 											onClick={handleAddToCart}
-											disabled={matchedVariant ? false : true}
+											disabled={
+												!matchedVariant || 
+												(product?.pricingType === "square-feet" && (width === 0 || height === 0))
+											}
 											variant="secondary"
 										>
-											Add to Cart
+											{product?.pricingType === "square-feet" && (width === 0 || height === 0)
+												? "Please add dimensions"
+												: "Add to Cart"
+											}
 										</Button>
 									</div>
 								)}

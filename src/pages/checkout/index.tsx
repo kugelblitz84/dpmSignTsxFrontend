@@ -123,7 +123,7 @@ const getVariationMeta = (
 };
 
 const Checkout = () => {
-	const { customer, token, logout } = useAuth();
+	const { customer, token, logout, setNavigateTo } = useAuth();
 	const navigate = useNavigate();
 	const [requestOrderLoading, setRequestOrderLoading] = useDisclosure();
 	const { cartItems, fetchCartItems, error, loading, setLoading } = useCart();
@@ -143,6 +143,8 @@ const Checkout = () => {
 	const [authModalTab, setAuthModalTab] = useState<"login" | "registration">(
 		"login"
 	);
+	const [isAuthenticating, setIsAuthenticating] = useState<boolean>(false);
+	const [recentlyAuthenticated, setRecentlyAuthenticated] = useState<boolean>(false);
 	const [prefillRegistration, setPrefillRegistration] = useState<{
 		name?: string;
 		email?: string;
@@ -190,11 +192,12 @@ const Checkout = () => {
 	}, [token, logout, toast, error]);
 
 	useEffect(() => {
-		if (!cartItems.length) {
+		// Don't redirect if user is in the middle of authentication process or recently authenticated
+		if (!cartItems.length && !isAuthenticating && !recentlyAuthenticated) {
 			navigate(routes.products.path);
 			return;
 		}
-	}, [cartItems, navigate]);
+	}, [cartItems, navigate, isAuthenticating, recentlyAuthenticated]);
 
 	// Keep total aligned with subtotal unless a coupon/discount is applied
 	useEffect(() => {
@@ -266,11 +269,13 @@ const Checkout = () => {
 				// Email registered: prepare login tab with email prefilled
 				setAuthModalTab("login");
 				setPrefillRegistration({});
+				setIsAuthenticating(true);
 				setAuthModalOpen(true);
 			} else {
 				// New email: always take to registration with email, include name if provided
 				setAuthModalTab("registration");
 				setPrefillRegistration(nameVal ? { name: nameVal, email } : { email });
+				setIsAuthenticating(true);
 				setAuthModalOpen(true);
 			}
 		} catch (err: unknown) {
@@ -393,6 +398,7 @@ const Checkout = () => {
 					} else {
 						setAuthModalTab("login");
 					}
+					setIsAuthenticating(true);
 					setAuthModalOpen(true);
 					return;
 				}
@@ -508,18 +514,161 @@ const Checkout = () => {
 		}
 	};
 
+	// Function to restore checkout form data after authentication
+	const restoreCheckoutFormData = () => {
+		try {
+			const savedCheckoutData = localStorage.getItem("guestCheckout");
+			const freshCustomerData = localStorage.getItem("customer");
+			const freshCustomer = freshCustomerData ? JSON.parse(freshCustomerData) : null;
+			
+			console.log("Restoring checkout form data:", { 
+				savedCheckoutData: !!savedCheckoutData, 
+				freshCustomer: !!freshCustomer 
+			});
+			
+			if (savedCheckoutData && freshCustomer) {
+				const parsedData = JSON.parse(savedCheckoutData);
+				
+				// Merge saved checkout data with customer information
+				const mergedData = {
+					...parsedData,
+					name: freshCustomer.name || parsedData.name,
+					email: freshCustomer.email || parsedData.email,
+					phone: freshCustomer.phone || parsedData.phone,
+				};
+				
+				console.log("Merged checkout data:", mergedData);
+				setCheckoutFormData(mergedData);
+
+				// Clear the saved checkout data
+				localStorage.removeItem("guestCheckout");
+			}
+		} catch (error) {
+			console.error("Error restoring checkout form data:", error);
+		}
+	};
+
+	// Function to merge guest cart with authenticated user's cart
+	const mergeGuestCartAndRefresh = async () => {
+		try {
+			console.log("Starting cart merge process...");
+			
+			// Get fresh auth data from localStorage (since login() stores it there immediately)
+			const freshToken = localStorage.getItem("token");
+			const freshCustomerData = localStorage.getItem("customer");
+			const freshCustomer = freshCustomerData ? JSON.parse(freshCustomerData) : null;
+			
+			console.log("Fresh auth data from localStorage:", { 
+				freshToken: !!freshToken, 
+				freshCustomer: !!freshCustomer 
+			});
+			console.log("Context auth data:", { token: !!token, customer: !!customer });
+			
+			// Get the guest cart from localStorage
+			const guestCartData = localStorage.getItem("guestCart");
+			console.log("Guest cart data:", guestCartData);
+			
+			if (!guestCartData || !freshToken || !freshCustomer) {
+				console.log("Missing data:", { 
+					guestCartData: !!guestCartData, 
+					freshToken: !!freshToken, 
+					freshCustomer: !!freshCustomer 
+				});
+				return;
+			}
+
+			const guestCart = JSON.parse(guestCartData);
+			console.log("Parsed guest cart:", guestCart);
+			
+			if (!Array.isArray(guestCart) || guestCart.length === 0) {
+				console.log("Guest cart is empty or invalid");
+				return;
+			}
+
+			console.log(`Merging ${guestCart.length} items to server cart...`);
+
+			// Add each guest cart item to the server cart
+			for (let i = 0; i < guestCart.length; i++) {
+				const item = guestCart[i];
+				console.log(`Adding item ${i + 1}/${guestCart.length}:`, item);
+				
+				try {
+					const result = await cartService.addItemToCart(
+						freshToken,
+						freshCustomer.customerId,
+						item.productId,
+						item.productVariantId,
+						item.quantity,
+						item.size,
+						item.widthInch,
+						item.heightInch,
+						item.price
+					);
+					console.log(`Successfully added item ${i + 1}:`, result);
+				} catch (error) {
+					console.error(`Failed to add guest cart item ${i + 1} to server cart:`, error);
+					// Continue with other items even if one fails
+				}
+			}
+
+			console.log("Clearing guest cart from localStorage...");
+			// Clear the guest cart from localStorage
+			localStorage.removeItem("guestCart");
+
+			console.log("Refreshing cart items...");
+			// Refresh the cart items to show the merged cart
+			await fetchCartItems();
+
+			console.log("Cart merge completed successfully");
+			toast({
+				description: "Cart items have been transferred to your account.",
+				variant: "success",
+				duration: 5000,
+			});
+		} catch (error) {
+			console.error("Error merging guest cart:", error);
+		}
+	};
+
 	return (
 		<div className="row p-6 lg:p-10 bg-gray-50 relative">
 			<AuthModal
 				open={authModalOpen}
-				onOpenChange={setAuthModalOpen}
+				onOpenChange={(open) => {
+					setAuthModalOpen(open);
+					if (!open) {
+						// Reset authentication state when modal is closed
+						setIsAuthenticating(false);
+						setRecentlyAuthenticated(false);
+					}
+				}}
 				defaultTab={authModalTab}
 				initialLoginEmail={checkoutFormData.email}
 				initialRegistration={prefillRegistration}
 				onSuccess={async () => {
+					console.log("Auth success callback triggered");
+					setIsAuthenticating(true); // Set authentication flag to prevent redirect
+					setRecentlyAuthenticated(true); // Mark as recently authenticated
+					setNavigateTo(""); // Clear any pending navigation to prevent redirection
 					setAuthModalOpen(false);
-					// After successful auth, refresh cart to server cart (if applicable)
-					await fetchCartItems();
+					
+					try {
+						// After successful auth, merge guest cart with server cart and refresh
+						await mergeGuestCartAndRefresh();
+						// Restore checkout form data from localStorage and update with user info
+						restoreCheckoutFormData();
+						
+						console.log("Authentication process completed. Form data:", checkoutFormData);
+						console.log("Cart items after merge:", cartItems.length);
+						
+						// Clear the recently authenticated flag after a delay
+						setTimeout(() => {
+							setRecentlyAuthenticated(false);
+						}, 5000); // 5 seconds buffer to ensure cart is properly loaded
+					} finally {
+						// Reset authentication flag after cart merging is complete
+						setIsAuthenticating(false);
+					}
 				}}
 			/>
 			{requestOrderLoading && (
@@ -1097,7 +1246,6 @@ const Checkout = () => {
 						<CardFooter>
 							<Button
 								className="w-full"
-								// disabled={validateForm(checkoutFormData) ? true : false}
 								onClick={handleRequestOrder}
 							>
 								Request Order

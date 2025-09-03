@@ -12,12 +12,13 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useEffect, useState } from "react";
 import { Eye, EyeClosed } from "lucide-react";
-import { customerService } from "@/api";
+import { customerService, cartService } from "@/api";
 import axios from "axios";
 import { useFormValidation } from "@/hooks/use-form-validation";
 import { LoadingOverlay } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useAuth } from "@/hooks/use-auth";
+import { useCart } from "@/hooks/use-cart";
 import routes from "@/routes";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -52,6 +53,7 @@ export const LoginRegistrationForm = ({
 	const { toast } = useToast();
 
 	const { login } = useAuth();
+	const { fetchCartItems } = useCart();
 	const [loading, setLoading] = useDisclosure(false);
 
 	const [showLoginPassword, setShowLoginPassword] = useState<boolean>(false);
@@ -138,6 +140,87 @@ export const LoginRegistrationForm = ({
 		}));
 	};
 
+	// Function to merge guest cart with authenticated user's cart
+	const mergeGuestCartAndRefresh = async () => {
+		try {
+			console.log("LoginRegistrationForm: Starting cart merge process...");
+			
+			// Get fresh auth data from localStorage (since login() stores it there immediately)
+			const freshToken = localStorage.getItem("token");
+			const freshCustomerData = localStorage.getItem("customer");
+			const freshCustomer = freshCustomerData ? JSON.parse(freshCustomerData) : null;
+			
+			console.log("LoginRegistrationForm: Fresh auth data from localStorage:", { 
+				freshToken: !!freshToken, 
+				freshCustomer: !!freshCustomer 
+			});
+			
+			// Get the guest cart from localStorage
+			const guestCartData = localStorage.getItem("guestCart");
+			console.log("LoginRegistrationForm: Guest cart data:", guestCartData);
+			
+			if (!guestCartData || !freshToken || !freshCustomer) {
+				console.log("LoginRegistrationForm: Missing data, skipping merge:", { 
+					guestCartData: !!guestCartData, 
+					freshToken: !!freshToken, 
+					freshCustomer: !!freshCustomer 
+				});
+				return;
+			}
+
+			const guestCart = JSON.parse(guestCartData);
+			console.log("LoginRegistrationForm: Parsed guest cart:", guestCart);
+			
+			if (!Array.isArray(guestCart) || guestCart.length === 0) {
+				console.log("LoginRegistrationForm: Guest cart is empty or invalid");
+				return;
+			}
+
+			console.log(`LoginRegistrationForm: Merging ${guestCart.length} items to server cart...`);
+
+			// Add each guest cart item to the server cart
+			for (let i = 0; i < guestCart.length; i++) {
+				const item = guestCart[i];
+				console.log(`LoginRegistrationForm: Adding item ${i + 1}/${guestCart.length}:`, item);
+				
+				try {
+					const result = await cartService.addItemToCart(
+						freshToken,
+						freshCustomer.customerId,
+						item.productId,
+						item.productVariantId,
+						item.quantity,
+						item.size,
+						item.widthInch,
+						item.heightInch,
+						item.price
+					);
+					console.log(`LoginRegistrationForm: Successfully added item ${i + 1}:`, result);
+				} catch (error) {
+					console.error(`LoginRegistrationForm: Failed to add guest cart item ${i + 1} to server cart:`, error);
+					// Continue with other items even if one fails
+				}
+			}
+
+			console.log("LoginRegistrationForm: Clearing guest cart from localStorage...");
+			// Clear the guest cart from localStorage
+			localStorage.removeItem("guestCart");
+
+			console.log("LoginRegistrationForm: Refreshing cart items...");
+			// Refresh the cart items to show the merged cart
+			await fetchCartItems();
+
+			console.log("LoginRegistrationForm: Cart merge completed successfully");
+			toast({
+				description: "Cart items have been transferred to your account.",
+				variant: "success",
+				duration: 5000,
+			});
+		} catch (error) {
+			console.error("LoginRegistrationForm: Error merging guest cart:", error);
+		}
+	};
+
 	const handleLogin = async () => {
 		try {
 			if (validateLoginForm(loginFormData)) {
@@ -155,6 +238,10 @@ export const LoginRegistrationForm = ({
 				});
 
 				login(result.data.authToken, result.data.customer);
+				
+				// Merge guest cart with authenticated user's cart
+				await mergeGuestCartAndRefresh();
+				
 				if (onSuccess) onSuccess();
 			}
 		} catch (err: unknown) {
@@ -191,6 +278,10 @@ export const LoginRegistrationForm = ({
 				});
 
 				login(result.data.authToken, result.data.customer);
+				
+				// Merge guest cart with authenticated user's cart
+				await mergeGuestCartAndRefresh();
+				
 				if (onSuccess) onSuccess();
 			}
 		} catch (err: unknown) {
