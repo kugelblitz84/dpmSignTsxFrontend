@@ -52,6 +52,47 @@ class Courier {
 			}
 		}
 	};
+
+	// Public fetch: uses global X-API-Key header from apiClient; no Authorization required
+	fetchAllCourierPublic = async () => {
+		try {
+			const params = new URLSearchParams({
+				page: "1",
+				limit: "20",
+			});
+
+			const response = await apiClient.get(
+				`${this.courierBaseUrl}/?${params.toString()}`
+			);
+			return response.data;
+		} catch (err: any) {
+			let fetchRequestError: ApiError;
+
+			if (err instanceof AxiosError) {
+				fetchRequestError = {
+					name: err.name || "AxiosError",
+					status:
+						err.response?.data?.status ||
+						err.response?.data?.status ||
+						err.status,
+					message:
+						err.response?.data?.message ||
+						err.response?.data?.error ||
+						err.message,
+					error: err,
+				};
+				throw fetchRequestError;
+			} else {
+				fetchRequestError = err.response?.data || err.response?.data?.error || err;
+				fetchRequestError.status = err.response?.data?.status;
+				fetchRequestError.message =
+					fetchRequestError.message ||
+					fetchRequestError.error?.message ||
+					"An unknown error occured.";
+				throw fetchRequestError as ApiError;
+			}
+		}
+	};
 }
 
 export default Courier;

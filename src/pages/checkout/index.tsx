@@ -154,8 +154,9 @@ const Checkout = () => {
 	useEffect(() => {
 		const fetchCouriers = async () => {
 			try {
-				if (!token) return; // guests can skip fetching secure data
-				const response = await courierService.fetchAllCourier(token);
+				const response = token
+					? await courierService.fetchAllCourier(token)
+					: await courierService.fetchAllCourierPublic();
 				setCouriers(response.data.couriers);
 			} catch (err: unknown) {
 				const message = err instanceof Error ? err.message : String(err);
@@ -165,8 +166,9 @@ const Checkout = () => {
 
 		const fetchStaff = async () => {
 			try {
-				if (!token) return; // guests skip
-				const response = await staffService.fetchAllStaff(token);
+				const response = token
+					? await staffService.fetchAllStaff(token)
+					: await staffService.fetchAllStaffPublic();
 
 				setStaff(
 					response.data.staff.filter(
