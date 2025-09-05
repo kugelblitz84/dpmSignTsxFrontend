@@ -994,6 +994,8 @@ const Checkout = () => {
 													...prevData,
 													staffId: Number(staffId),
 												}));
+												// Validate immediately to surface required error
+												validateField("staffId", Number(staffId) as unknown as any);
 											}}
 										>
 											<SelectTrigger className="w-[220px]">
@@ -1012,6 +1014,9 @@ const Checkout = () => {
 												</SelectGroup>
 											</SelectContent>
 										</Select>
+										{errors.staffId && (
+											<p className="text-rose-500 font-semibold text-sm">{errors.staffId}</p>
+										)}
 									</div>
 								</div>
 
