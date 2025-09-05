@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { Printer, Download } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -16,7 +16,6 @@ interface CourierProps { courierId: number; name: string }
 
 const Invoice = () => {
   const { orderId } = useParams();
-  const navigate = useNavigate();
   const { orders } = useOrders();
   const { token } = useAuth();
 
@@ -26,53 +25,51 @@ const Invoice = () => {
   const printRef = useRef<HTMLDivElement | null>(null);
   const [downloading, setDownloading] = useState(false);
 
-  useEffect(() => {
-    if (!orderId) return;
-    if (orders.length === 0) return;
-    const found = orders.find((o) => o.orderId === Number(orderId)) || null;
-    if (!found) {
-      navigate("/account/orders");
-      return;
-    }
-    setOrder(found);
-  }, [orderId, orders, navigate]);
+  const handlePrint = () => {
+    if (!printRef.current) return;
+    setTimeout(() => window.print(), 50);
+  };
 
+  // Fetch support data (staff, couriers) for labels and charges
   useEffect(() => {
-    const fetchAux = async () => {
+    const fetchAll = async () => {
       try {
-        if (!token) return;
-        const [s, c] = await Promise.all([
-          staffService.fetchAllStaff(token),
-          courierService.fetchAllCourier(token),
+        const [staffRes, courierRes] = await Promise.all([
+          token ? staffService.fetchAllStaff(token) : staffService.fetchAllStaffPublic(),
+          token ? courierService.fetchAllCourier(token) : courierService.fetchAllCourierPublic(),
         ]);
-        setStaff((s.data?.staff || []).filter((x: StaffProps) => !x.isDeleted));
-        setCouriers(c.data?.couriers || []);
-      } catch {
+        setStaff((staffRes?.data?.staff || []).filter((s: StaffProps) => !s.isDeleted));
+        setCouriers(courierRes?.data?.couriers || []);
+      } catch (e) {
         // non-blocking
+        console.log("invoice fetchAll failed", e);
       }
     };
-    fetchAux();
+    fetchAll();
   }, [token]);
 
+  // Select the current order from context by route param
+  useEffect(() => {
+    const found = orders.find((o) => String(o.orderId) === String(orderId));
+    setOrder(found || null);
+  }, [orders, orderId]);
+
+  // Compute totals and agent info
   const invoiceData = useMemo(() => {
     if (!order) return null;
-    const agentInfo = staff.find((s) => s.staffId === order.staffId);
-
-    const subTotal = order.orderItems.reduce((sum, item) => {
-      return sum + item.price * item.quantity;
-    }, 0);
-
-    const grandTotal = order.orderTotalPrice;
-    const discountAmount = Math.max(0, subTotal - grandTotal);
-
-    const totalPaidAmount = order.payments
+    const agentInfo = staff.find((s) => s.staffId === order.staffId) || null;
+    const subTotal = (order.orderItems || []).reduce(
+      (sum, it) => sum + Number(it.price || 0) * Number(it.quantity || 0),
+      0
+    );
+    const discountAmount = 0;
+    const designCharge = Number(agentInfo?.designCharge ?? 0);
+    const installationCharge = 0;
+    const paidTotal = (order.payments || [])
       .filter((p) => p.isPaid)
-      .reduce((acc, p) => acc + p.amount, 0);
-    const amountDue = Math.max(0, grandTotal - totalPaidAmount);
-
-    const designCharge = agentInfo?.role === "designer" ? agentInfo.designCharge || 0 : 0;
-    const installationCharge = 1148;
-
+      .reduce((a, p) => a + Number(p.amount || 0), 0);
+    const grandTotal = subTotal + designCharge + installationCharge - discountAmount;
+    const amountDue = Math.max(0, grandTotal - paidTotal);
     return {
       order,
       agentInfo,
@@ -85,52 +82,114 @@ const Invoice = () => {
     };
   }, [order, staff]);
 
-  const handlePrint = () => {
-    if (!printRef.current) return;
-    setTimeout(() => window.print(), 50);
-  };
-
   const handleDownloadPdf = async () => {
     if (!printRef.current || downloading) return;
+    // Keep handles outside try so we can restore in finally
+    const element = printRef.current;
+    const prevStyle = {
+      width: element.style.width,
+      minHeight: element.style.minHeight,
+      height: element.style.height,
+      paddingBottom: element.style.paddingBottom,
+      paddingTop: element.style.paddingTop,
+      marginTop: element.style.marginTop,
+      marginBottom: element.style.marginBottom,
+    } as const;
+    const hadMinHScreenClass = element.classList.contains("min-h-screen");
+    const contentEl = document.getElementById("printContent") as HTMLElement | null;
+  const contentPrev = contentEl
+      ? {
+          minHeight: contentEl.style.minHeight,
+          height: contentEl.style.height,
+          paddingBottom: contentEl.style.paddingBottom,
+      display: contentEl.style.display,
+      flexDirection: (contentEl as HTMLElement).style.flexDirection,
+          marginTop: contentEl.style.marginTop,
+          marginBottom: contentEl.style.marginBottom,
+        }
+      : null;
+    const hadMinHFullClass = contentEl?.classList.contains("min-h-full");
+  const totalsTable = document.getElementById("totalsTable") as HTMLTableElement | null;
+  const prevTableLayout = totalsTable?.style.tableLayout ?? "";
+  const prevTableWidth = totalsTable?.style.width ?? "";
+  const grandRowCells = totalsTable?.rows?.[totalsTable.rows.length - 1]?.cells;
+  const prevGrandLeftWS = grandRowCells?.[0]?.style.whiteSpace ?? "";
+  const prevGrandRightWS = grandRowCells?.[1]?.style.whiteSpace ?? "";
     try {
       setDownloading(true);
-      // Slight delay to ensure fonts/images are rendered
-      await new Promise((r) => setTimeout(r, 50));
+      // slight delay for fonts/images
+      await new Promise((r) => setTimeout(r, 20));
 
-      const element = printRef.current;
+  // Prepare PDF page metrics early (used to size content before capture)
+  const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const topMargin = 4; // mm small safety margin to keep header near top
+  const bottomMargin = 6; // mm safety margin
+  const safeHeight = Math.max(10, pageHeight - topMargin - bottomMargin);
+
+      // Normalize layout for pdf capture
+      if (hadMinHScreenClass) element.classList.remove("min-h-screen");
+  // Keep current width; do not force a fixed px width so totals box width matches preview
+      element.style.minHeight = "auto";
+      element.style.height = "auto";
+  element.style.paddingBottom = "0px";
+  element.style.paddingTop = "0px";
+      element.style.marginTop = "0px";
+      element.style.marginBottom = "0px";
+
+      if (contentEl) {
+        if (hadMinHFullClass) contentEl.classList.remove("min-h-full");
+        // Enforce a safe height equal to A4 minus margins to keep footer at bottom
+        contentEl.style.minHeight = `${safeHeight * 3.7795}px`; // mm -> px approx at 96dpi
+        contentEl.style.height = `${safeHeight * 3.7795}px`;
+        contentEl.style.display = "flex";
+        (contentEl as HTMLElement).style.flexDirection = "column";
+        contentEl.style.paddingBottom = "0px";
+        contentEl.style.marginTop = "0px";
+        contentEl.style.marginBottom = "0px";
+      }
+
+      if (totalsTable) {
+        totalsTable.style.tableLayout = "fixed"; // improve column alignment
+        // Lock to current rendered width so PDF matches preview
+        const currentWidth = totalsTable.offsetWidth;
+        if (currentWidth > 0) totalsTable.style.width = `${currentWidth}px`;
+        if (grandRowCells && grandRowCells.length >= 2) {
+          grandRowCells[0].style.whiteSpace = "nowrap";
+          grandRowCells[1].style.whiteSpace = "nowrap";
+        }
+      }
+
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
         backgroundColor: "#ffffff",
-        // Ensure images & fonts are captured
         logging: false,
-        windowWidth: element.scrollWidth,
-        windowHeight: element.scrollHeight,
+        scrollY: -window.scrollY,
       });
 
       const imgData = canvas.toDataURL("image/png");
 
-      // Create A4 PDF in portrait (mm)
-      const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
+  // PDF already prepared above; use computed page metrics
 
-      // Scale the image to full page width; compute corresponding height
+      // Calculate image size (mm) for full width
       const imgWidth = pageWidth;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight, undefined, "FAST");
-      heightLeft -= pageHeight;
-
-      while (heightLeft > 0) {
-        position -= pageHeight; // shift up to show next section
-        pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight, undefined, "FAST");
-        heightLeft -= pageHeight;
+      // If the capture would span multiple pages, scale it down to fit within safe height
+      let drawWidth = imgWidth;
+      let drawHeight = imgHeight;
+      if (imgHeight > safeHeight) {
+        const scale = safeHeight / imgHeight;
+        drawWidth = imgWidth * scale;
+        drawHeight = imgHeight * scale;
       }
+
+  // Center horizontally and top-align vertically within safe area
+      const xOffset = (pageWidth - drawWidth) / 2;
+  const yOffset = topMargin;
+      pdf.addImage(imgData, "PNG", xOffset, yOffset, drawWidth, drawHeight, undefined, "FAST");
 
       const fileName = `Invoice-DPM-${orderId}.pdf`;
       pdf.save(fileName);
@@ -138,6 +197,36 @@ const Invoice = () => {
       // Non-blocking: fall back to print dialog if PDF fails
       try { handlePrint(); } catch {}
     } finally {
+      // restore
+      if (printRef.current) {
+        const el = printRef.current;
+        el.style.width = prevStyle.width;
+        el.style.minHeight = prevStyle.minHeight;
+        el.style.height = prevStyle.height;
+        el.style.paddingBottom = prevStyle.paddingBottom;
+  el.style.paddingTop = prevStyle.paddingTop;
+        el.style.marginTop = prevStyle.marginTop;
+        el.style.marginBottom = prevStyle.marginBottom;
+        if (hadMinHScreenClass) el.classList.add("min-h-screen");
+      }
+      if (contentEl && contentPrev) {
+        contentEl.style.minHeight = contentPrev.minHeight;
+        contentEl.style.height = contentPrev.height;
+        contentEl.style.paddingBottom = contentPrev.paddingBottom;
+        contentEl.style.display = contentPrev.display;
+        (contentEl as HTMLElement).style.flexDirection = contentPrev.flexDirection;
+        contentEl.style.marginTop = contentPrev.marginTop;
+        contentEl.style.marginBottom = contentPrev.marginBottom;
+        if (hadMinHFullClass) contentEl.classList.add("min-h-full");
+      }
+      if (totalsTable) {
+        totalsTable.style.tableLayout = prevTableLayout;
+        totalsTable.style.width = prevTableWidth;
+        if (grandRowCells && grandRowCells.length >= 2) {
+          grandRowCells[0].style.whiteSpace = prevGrandLeftWS;
+          grandRowCells[1].style.whiteSpace = prevGrandRightWS;
+        }
+      }
       setDownloading(false);
     }
   };
@@ -163,7 +252,7 @@ const Invoice = () => {
         </Button>
       </div>
 
-      <div ref={printRef} className="w-[900px] h-auto min-h-screen mx-auto pt-1 print:break-after-avoid-page bg-white p-6 font-sans text-black">
+  <div id="invoicePrintArea" ref={printRef} className="invoice-a4 w-[794px] min-h-[1123px] h-auto mx-auto pt-1 print:break-after-avoid-page bg-white p-6 font-sans text-black flex flex-col justify-between">
         <div id="printHeader" className="w-full flex items-center justify-between gap-2 px-3 pb-4 border-b-2 border-gray-300">
           <div className="flex items-start justify-start gap-4">
             <div className="flex items-center justify-center">
@@ -193,7 +282,7 @@ const Invoice = () => {
           </div>
         </div>
 
-        <div id="printContent" className="h-max min-h-full py-6">
+  <div id="printContent" className="avoid-page-break h-max min-h-full py-6">
           <div className="w-full h-[180px] mb-6 flex font-medium">
             <div className="flex-1 pt-4 px-4">
               <h3 className="text-base font-bold pb-2 text-gray-800">Billing Information:</h3>
@@ -218,7 +307,7 @@ const Invoice = () => {
             <h3 className="text-base font-bold mb-2 text-gray-800">Order Details</h3>
             <table className="w-full table-auto border-collapse text-sm">
               <thead>
-                <tr className="bg-[#3871C2] text-white">
+                <tr className="bg-[#3871C2] text-white print-bg">
                   <th className="border border-blue-700 p-2 text-center w-[5%]">NO</th>
                   <th className="border border-blue-700 p-2 text-left w-[40%]">DESCRIPTION</th>
                   <th className="border border-blue-700 p-2 text-center w-[15%]">QTY/SQ. FT.</th>
@@ -257,27 +346,39 @@ const Invoice = () => {
           </div>
 
           <div className="w-full flex justify-end mb-6">
-            <table className="w-1/3 table-auto border-collapse text-sm">
+            <table id="totalsTable" className="w-[32%] table-fixed border-collapse text-sm">
+              <colgroup>
+                <col style={{ width: "60%" }} />
+                <col style={{ width: "40%" }} />
+              </colgroup>
               <tbody>
                 <tr className="bg-gray-50">
-                  <td className="px-2 text-right font-bold">Sub Total:</td>
-                  <td className="px-2 text-right">{subTotal.toLocaleString()} {currencyCode}</td>
+                  <td className="px-3 py-2 text-right font-bold whitespace-nowrap align-middle">Sub Total:</td>
+                  <td className="px-3 py-2 text-right whitespace-nowrap align-middle">{subTotal.toLocaleString()} {currencyCode}</td>
                 </tr>
                 <tr className="bg-white">
-                  <td className="px-2 text-right font-bold">Design Charge:</td>
-                  <td className="px-2 text-right">{designCharge.toLocaleString()} {currencyCode}</td>
+                  <td className="px-3 py-2 text-right font-bold whitespace-nowrap align-middle">Design Charge:</td>
+                  <td className="px-3 py-2 text-right whitespace-nowrap align-middle">{designCharge.toLocaleString()} {currencyCode}</td>
                 </tr>
                 <tr className="bg-gray-50">
-                  <td className="px-2 text-right font-bold">Installation Charge:</td>
-                  <td className="px-2 text-right">{installationCharge.toLocaleString()} {currencyCode}</td>
+                  <td className="px-3 py-2 text-right font-bold whitespace-nowrap align-middle">Installation Charge:</td>
+                  <td className="px-3 py-2 text-right whitespace-nowrap align-middle">{installationCharge.toLocaleString()} {currencyCode}</td>
                 </tr>
                 <tr className="bg-white">
-                  <td className="px-2 text-right font-bold">Discount:</td>
-                  <td className="px-2 text-right">{discountAmount.toLocaleString()} {currencyCode}</td>
+                  <td className="px-3 py-2 text-right font-bold whitespace-nowrap align-middle">Discount:</td>
+                  <td className="px-3 py-2 text-right whitespace-nowrap align-middle">{discountAmount.toLocaleString()} {currencyCode}</td>
                 </tr>
-                <tr className="bg-[#3871C2] text-white font-bold text-lg">
-                  <td className="border border-blue-700 px-2 text-right">GRAND TOTAL:</td>
-                  <td className="border border-blue-700 px-2 text-right">{grandTotal.toLocaleString()} {currencyCode}</td>
+                <tr className="bg-[#3871C2] text-white font-bold print-bg">
+                  <td className="border border-blue-700 px-2 py-1 text-right align-middle">
+                    <div className="h-8 flex items-center justify-end overflow-hidden">
+                      <span className="inline-block whitespace-nowrap leading-none tracking-normal text-base">GRAND TOTAL:</span>
+                    </div>
+                  </td>
+                  <td className="border border-blue-700 px-2 py-1 text-right align-middle">
+                    <div className="h-8 flex items-center justify-end overflow-hidden">
+                      <span className="inline-block whitespace-nowrap leading-none tracking-normal text-base">{grandTotal.toLocaleString()} {currencyCode}</span>
+                    </div>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -307,6 +408,9 @@ const Invoice = () => {
               <p className="mt-4 font-semibold text-xs italic text-gray-700">NB: Delivery charges are the customer’s responsibility (if applicable).</p>
             </div>
           )}
+            {/* Flexible spacer to push footer to bottom when content is short (hidden on print) */}
+            <div className="flex-1 no-print" />
+
 
           <div className="w-full h-auto min-h-min flex justify-between mt-16 text-center pb-4">
             <div>
