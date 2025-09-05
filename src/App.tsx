@@ -42,6 +42,7 @@ import { CartProvider } from "@/hooks/use-cart";
 import OrderProvider from "./hooks/use-order";
 import SuccessPayment from "./pages/payments/Success";
 import FailedPayment from "./pages/payments/Failed";
+import Invoice from "@/pages/invoice";
 
 const App = () => {
 	useEffect(() => {
@@ -119,6 +120,17 @@ const App = () => {
 											redirectPath={routes.account.dashboard.path}
 										>
 											<Account />
+										</ProtectedRoute>
+									}
+								/>
+
+								<Route
+									path={routes.invoice.path}
+									element={
+										<ProtectedRoute redirectPath={routes.account.path}>
+											<OrderProvider>
+												<Invoice />
+											</OrderProvider>
 										</ProtectedRoute>
 									}
 								/>

@@ -176,6 +176,12 @@ const routes: Routes = {
 		description:
 			"Partner with Dhaka Plastic & Metal to expand your business and reach new customers.",
 	},
+	invoice: {
+		name: "Invoice",
+		path: "/invoice/:orderId",
+		title: "Invoice - Dhaka Plastic & Metal",
+		description: "Order invoice for your purchase.",
+	},
 	successPayment: {
 		name: "Payment Successfull",
 		path: "/success-payment",
