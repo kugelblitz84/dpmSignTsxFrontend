@@ -18,7 +18,7 @@ export interface OrderProps {
 	customerName: string;
 	customerEmail: string;
 	customerPhone: string;
-	staffId: number;
+	staffId: number | null;
 	billingAddress: string;
 	additionalNotes: string;
 	method: "online" | "offline";

@@ -87,10 +87,7 @@ class Order {
 				"string.empty": "Courier address cannot be empty.",
 				"any.required": "Courier address is required.",
 			}),
-			staffId: Joi.number().required().messages({
-				"number.base": "Please select a staff/agent.",
-				"any.required": "Please select a staff/agent.",
-			}),
+			staffId: Joi.number().optional().allow(null),
 			courierId: Joi.number().required().allow(null).messages({
 				"number.base": "Please select a courier service provider.",
 				"any.required": "Courier service selection is required.",

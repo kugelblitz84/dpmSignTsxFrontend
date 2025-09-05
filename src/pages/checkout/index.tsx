@@ -361,14 +361,6 @@ const Checkout = () => {
 	const handleRequestOrder = async () => {
 		try {
 			let isValid = validateForm(checkoutFormData);
-					// Explicitly require staff selection to prevent any implicit assignment
-					if (checkoutFormData.staffId === null) {
-						isValid = false;
-						setErrors((prev) => ({
-							...prev,
-							staffId: "Please select a staff/agent.",
-						}));
-					}
 			if (checkoutFormData.deliveryMethod === "courier") {
 				if (
 					!checkoutFormData.courierId ||
@@ -1007,8 +999,6 @@ const Checkout = () => {
 													...prevData,
 													staffId: Number(staffId),
 												}));
-												// Validate immediately to surface required error
-												validateField("staffId", Number(staffId) as unknown as any);
 											}}
 										>
 											<SelectTrigger className="w-[220px]" error={errors.staffId ? true : false}>
@@ -1027,9 +1017,7 @@ const Checkout = () => {
 												</SelectGroup>
 											</SelectContent>
 										</Select>
-										{errors.staffId && (
-											<p className="text-rose-500 font-semibold text-sm">{errors.staffId}</p>
-										)}
+										{/* Staff selection is optional; no error needed */}
 									</div>
 								</div>
 
@@ -1273,7 +1261,6 @@ const Checkout = () => {
 									!checkoutFormData.email.trim() ||
 									!checkoutFormData.phone.trim() ||
 									!checkoutFormData.billingAddress.trim() ||
-									checkoutFormData.staffId === null ||
 									checkoutFormData.deliveryMethod === "" ||
 									(checkoutFormData.deliveryMethod === "courier" &&
 										(!checkoutFormData.courierId ||
