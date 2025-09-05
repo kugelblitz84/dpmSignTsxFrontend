@@ -361,6 +361,14 @@ const Checkout = () => {
 	const handleRequestOrder = async () => {
 		try {
 			let isValid = validateForm(checkoutFormData);
+					// Explicitly require staff selection to prevent any implicit assignment
+					if (checkoutFormData.staffId === null) {
+						isValid = false;
+						setErrors((prev) => ({
+							...prev,
+							staffId: "Please select a staff/agent.",
+						}));
+					}
 			if (checkoutFormData.deliveryMethod === "courier") {
 				if (
 					!checkoutFormData.courierId ||
@@ -989,6 +997,11 @@ const Checkout = () => {
 											proper recognition and commission.
 										</p>
 										<Select
+											value={
+												checkoutFormData.staffId !== null
+													? String(checkoutFormData.staffId)
+													: undefined
+											}
 											onValueChange={(staffId) => {
 												setCheckoutFormData((prevData) => ({
 													...prevData,
@@ -998,7 +1011,7 @@ const Checkout = () => {
 												validateField("staffId", Number(staffId) as unknown as any);
 											}}
 										>
-											<SelectTrigger className="w-[220px]">
+											<SelectTrigger className="w-[220px]" error={errors.staffId ? true : false}>
 												<SelectValue placeholder="Select a staff member" />
 											</SelectTrigger>
 											<SelectContent>
@@ -1253,6 +1266,19 @@ const Checkout = () => {
 						<CardFooter>
 							<Button
 								className="w-full"
+								disabled={
+									!isAgreeTerms ||
+									!cartItems.length ||
+									!checkoutFormData.name.trim() ||
+									!checkoutFormData.email.trim() ||
+									!checkoutFormData.phone.trim() ||
+									!checkoutFormData.billingAddress.trim() ||
+									checkoutFormData.staffId === null ||
+									checkoutFormData.deliveryMethod === "" ||
+									(checkoutFormData.deliveryMethod === "courier" &&
+										(!checkoutFormData.courierId ||
+											!checkoutFormData.courierAddress.trim()))
+								}
 								onClick={handleRequestOrder}
 							>
 								Request Order
