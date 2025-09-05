@@ -26,6 +26,7 @@ class Order {
 	};
 	private orderRequestCreateUrl: string;
 	private fetchOrderByCustomerUrl: string;
+	private fetchMyOrdersUrl: string;
 	public orderRequestCreateSchema: Joi.ObjectSchema;
 
 	constructor() {
@@ -109,10 +110,35 @@ class Order {
 
 		this.orderRequestCreateUrl = `${apiBaseURL}/order/create-request`;
 		this.fetchOrderByCustomerUrl = `${apiBaseURL}/order/customer`;
+		this.fetchMyOrdersUrl = `${apiBaseURL}/order/my`;
 		this.orderRequestCreateSchema = Joi.object(this.schema);
 	}
 
-	createOrderRequest = async (
+	// Overloads: legacy (13 args w/o couponId) and current (14 args with couponId)
+	createOrderRequest(
+		token: string,
+		customerId: number,
+		name: string,
+		email: string,
+		phone: string,
+		billingAddress: string,
+		additionalNotes: string,
+		designFiles: File[] | [],
+		deliveryMethod: string,
+		courierId: number | null,
+		courierAddress: string,
+		staffId: number | null,
+		orderItems: {
+			productId: number;
+			productVariantId: number;
+			quantity: number;
+			size: number | null;
+			widthInch: number | null;
+			heightInch: number | null;
+			price: number;
+		}[]
+	): Promise<any>;
+	createOrderRequest(
 		token: string,
 		customerId: number,
 		name: string,
@@ -126,7 +152,6 @@ class Order {
 		courierAddress: string,
 		staffId: number | null,
 		couponId: number | null,
-		// paymentMethod: string,
 		orderItems: {
 			productId: number;
 			productVariantId: number;
@@ -136,8 +161,60 @@ class Order {
 			heightInch: number | null;
 			price: number;
 		}[]
-	) => {
+	): Promise<any>;
+
+	async createOrderRequest(
+		token: string,
+		customerId: number,
+		name: string,
+		email: string,
+		phone: string,
+		billingAddress: string,
+		additionalNotes: string,
+		designFiles: File[] | [],
+		deliveryMethod: string,
+		courierId: number | null,
+		courierAddress: string,
+		staffId: number | null,
+		arg13: number | null | {
+			productId: number;
+			productVariantId: number;
+			quantity: number;
+			size: number | null;
+			widthInch: number | null;
+			heightInch: number | null;
+			price: number;
+		}[],
+		arg14?: {
+			productId: number;
+			productVariantId: number;
+			quantity: number;
+			size: number | null;
+			widthInch: number | null;
+			heightInch: number | null;
+			price: number;
+		}[]
+	): Promise<any> {
 		try {
+			// Support both signatures by normalizing args
+			let couponId: number | null = null;
+			let orderItems:
+				| {
+						productId: number;
+						productVariantId: number;
+						quantity: number;
+						size: number | null;
+						widthInch: number | null;
+						heightInch: number | null;
+						price: number;
+				  }[]
+				| [] = [];
+			if (Array.isArray(arg13)) {
+				orderItems = arg13;
+			} else {
+				couponId = arg13;
+				orderItems = arg14 || [];
+			}
 			const form = new FormData();
 
 			// Append text fields to the FormData object
@@ -218,7 +295,7 @@ class Order {
 			}
 			throw fetchRequestError;
 		}
-	};
+	}
 
 	fetchAllOrdersByCustomer = async (token: string, customerId: number) => {
 		try {
@@ -231,6 +308,38 @@ class Order {
 				}
 			);
 			return response.data;
+		} catch (err: unknown) {
+			let fetchRequestError: ApiError = {
+				name: "Error",
+				message: "An unknown error occured.",
+				error: err as Error,
+				status: undefined,
+			};
+			if (err instanceof AxiosError) {
+				const data = (err.response?.data || {}) as AxiosErrorData;
+				fetchRequestError = {
+					name: err.name || "AxiosError",
+					status: data.status ?? err.status,
+					message: data.message || data.error || err.message,
+					error: err,
+				} as ApiError;
+			}
+			throw fetchRequestError;
+		}
+	};
+
+	// New: Fetch the authenticated customer's orders using /order/my
+	fetchMyOrders = async (token: string) => {
+		try {
+			const response = await apiClient.get(this.fetchMyOrdersUrl, {
+				headers: {
+					Authorization: `Bearer ${token}`,
+				},
+			});
+			// Normalize to keep .data.orders for callers
+			const payload = response.data;
+			const orders = payload?.data?.orders ?? payload?.data ?? payload?.orders ?? [];
+			return { ...payload, data: { orders } };
 		} catch (err: unknown) {
 			let fetchRequestError: ApiError = {
 				name: "Error",

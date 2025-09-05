@@ -123,25 +123,21 @@ const OrderProvider = ({ children }: { children: React.ReactNode }) => {
 	const [orders, setOrders] = useState<OrderProps[]>([]);
 	const [loading, setLoading] = useState<boolean>(false);
 	const [error, setError] = useState<string | null>(null);
-	const { customer, token, logout } = useAuth();
+	const { token, logout } = useAuth();
 	const location = useLocation();
 
 	// Use useCallback to keep this function stable & prevent extra fetches
 	const fetchOrder = useCallback(async () => {
-		if (!token || !customer) {
+		if (!token) {
 			logout();
 			setError("Authentication token is missing.");
 			return;
 		}
-		// if (loading) return;
 		setLoading(true);
 		setError(null);
 		try {
-			const response = await orderService.fetchAllOrdersByCustomer(
-				token,
-				customer.customerId
-			);
-			const updatedOrders = response.data.orders.map(
+			const response = await orderService.fetchMyOrders(token);
+			const updatedOrders = (response.data.orders || []).map(
 				(orderItem: OrderProps) => ({
 					...orderItem,
 					images:
@@ -158,7 +154,7 @@ const OrderProvider = ({ children }: { children: React.ReactNode }) => {
 		} finally {
 			setLoading(false);
 		}
-	}, [token, customer, logout]);
+	}, [token, logout]);
 
 	// Only re-run when token, location, or the fetchOrder function changes.
 	useEffect(() => {
