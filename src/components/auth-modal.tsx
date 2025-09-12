@@ -19,6 +19,10 @@ interface AuthModalProps {
 		phone?: string;
 	};
 	onSuccess?: () => void;
+	// New: combined order action controls
+	showOrderActionButtons?: boolean;
+	onLoginAndOrder?: () => Promise<void> | void;
+	onRegisterAndOrder?: () => Promise<void> | void;
 }
 
 export const AuthModal = ({
@@ -28,6 +32,9 @@ export const AuthModal = ({
 	initialLoginEmail,
 	initialRegistration,
 	onSuccess,
+	showOrderActionButtons,
+	onLoginAndOrder,
+	onRegisterAndOrder,
 }: AuthModalProps) => {
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -40,6 +47,9 @@ export const AuthModal = ({
 					initialLoginEmail={initialLoginEmail}
 					initialRegistration={initialRegistration}
 					onSuccess={onSuccess}
+					showOrderActionButtons={showOrderActionButtons}
+					onLoginAndOrder={onLoginAndOrder}
+					onRegisterAndOrder={onRegisterAndOrder}
 				/>
 			</DialogContent>
 		</Dialog>

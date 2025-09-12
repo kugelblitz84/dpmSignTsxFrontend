@@ -42,13 +42,19 @@ interface LoginRegistrationFormPropsExtra {
 	initialLoginEmail?: string;
 	initialRegistration?: Partial<RegistrationFormProps>;
 	onSuccess?: () => void; // called after successful auth
+	// New: combined actions for checkout
+	showOrderActionButtons?: boolean;
+	onLoginAndOrder?: () => Promise<void> | void;
+	onRegisterAndOrder?: () => Promise<void> | void;
 }
 
 export const LoginRegistrationForm = ({
 	defaultTab = "login",
 	initialLoginEmail = "",
 	initialRegistration,
-	onSuccess,
+	showOrderActionButtons = false,
+	onLoginAndOrder,
+	onRegisterAndOrder,
 }: LoginRegistrationFormPropsExtra) => {
 	const { toast } = useToast();
 
@@ -221,7 +227,8 @@ export const LoginRegistrationForm = ({
 		}
 	};
 
-	const handleLogin = async () => {
+	// Core login used by both plain login and combined login+order
+	const loginCore = async (opts?: { skipMerge?: boolean }) => {
 		try {
 			if (validateLoginForm(loginFormData)) {
 				setLoading.open();
@@ -238,12 +245,14 @@ export const LoginRegistrationForm = ({
 				});
 
 				login(result.data.authToken, result.data.customer);
-				
-				// Merge guest cart with authenticated user's cart
-				await mergeGuestCartAndRefresh();
-				
-				if (onSuccess) onSuccess();
+                
+				if (!opts?.skipMerge) {
+					// Merge guest cart with authenticated user's cart
+					await mergeGuestCartAndRefresh();
+				}
+				return true;
 			}
+			return false;
 		} catch (err: unknown) {
 			const message = err instanceof Error ? err.message : String(err);
 			setLoginFormErrors((prevErrors) => ({
@@ -255,12 +264,16 @@ export const LoginRegistrationForm = ({
 				variant: "destructive",
 				duration: 10000,
 			});
+			return false;
 		} finally {
 			setLoading.close();
 		}
 	};
 
-	const handleRegistration = async () => {
+	// Removed standalone login handler; combined flow remains
+
+	// Core registration used by both plain and combined register+order
+	const registerCore = async (opts?: { skipMerge?: boolean }) => {
 		try {
 			if (validateRegistrationForm(registrationFormData)) {
 				setLoading.open();
@@ -278,12 +291,14 @@ export const LoginRegistrationForm = ({
 				});
 
 				login(result.data.authToken, result.data.customer);
-				
-				// Merge guest cart with authenticated user's cart
-				await mergeGuestCartAndRefresh();
-				
-				if (onSuccess) onSuccess();
+                
+				if (!opts?.skipMerge) {
+					// Merge guest cart with authenticated user's cart
+					await mergeGuestCartAndRefresh();
+				}
+				return true;
 			}
+			return false;
 		} catch (err: unknown) {
 			// Detect backend's 'email already exists' error and switch to login with prefilled email
 			const status = axios.isAxiosError(err)
@@ -329,8 +344,34 @@ export const LoginRegistrationForm = ({
 					duration: 10000,
 				});
 			}
+			return false;
 		} finally {
 			setLoading.close();
+		}
+	};
+
+	// Removed standalone registration handler; combined flow remains
+
+	// Combined flows (skip merge because order will be sent immediately)
+	const handleLoginThenOrder = async () => {
+		const ok = await loginCore({ skipMerge: true });
+		if (!ok) return;
+		try {
+			await Promise.resolve(onLoginAndOrder?.());
+		} catch (e) {
+			const msg = e instanceof Error ? e.message : String(e);
+			toast({ description: msg, variant: "destructive", duration: 10000 });
+		}
+	};
+
+	const handleRegisterThenOrder = async () => {
+		const ok = await registerCore({ skipMerge: true });
+		if (!ok) return;
+		try {
+			await Promise.resolve(onRegisterAndOrder?.());
+		} catch (e) {
+			const msg = e instanceof Error ? e.message : String(e);
+			toast({ description: msg, variant: "destructive", duration: 10000 });
 		}
 	};
 
@@ -438,10 +479,12 @@ export const LoginRegistrationForm = ({
 							</Link>
 						</div>
 					</CardContent>
-					<CardFooter>
-						<Button className="w-full" onClick={handleLogin}>
-							Login
-						</Button>
+					<CardFooter className="flex flex-col items-stretch gap-3">
+						{showOrderActionButtons && (
+							<Button variant="secondary" className="w-full" onClick={handleLoginThenOrder}>
+								Login & Send Order Request
+							</Button>
+						)}
 					</CardFooter>
 				</Card>
 			</TabsContent>
@@ -570,10 +613,22 @@ export const LoginRegistrationForm = ({
 							)}
 						</div>
 					</CardContent>
-					<CardFooter>
-						<Button className="w-auto" onClick={handleRegistration}>
-							Register
-						</Button>
+					<CardFooter className="flex flex-col items-stretch gap-3">
+						{showOrderActionButtons && (
+							<Button variant="secondary" className="w-full" onClick={handleRegisterThenOrder}>
+								Register & Send Order Request
+							</Button>
+						)}
+						<p className="text-sm text-center text-gray-700">
+							Already have an account?{" "}
+							<button
+								type="button"
+								className="text-skyblue underline hover:opacity-80"
+								onClick={() => setTabValue("login")}
+							>
+								Log in
+							</button>
+						</p>
 					</CardFooter>
 				</Card>
 			</TabsContent>

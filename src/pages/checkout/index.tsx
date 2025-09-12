@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Trash, Upload } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, safeCreateObjectURL, stripBlobs } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { currencySymbol } from "@/config";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -38,7 +38,7 @@ import {
 } from "@/api";
 import { useFormValidation } from "@/hooks/use-form-validation";
 import AuthModal from "@/components/auth-modal";
-import { customerService } from "@/api";
+// customerService no longer used here for modal decision; we default to registration-first
 import { useDisclosure } from "@mantine/hooks";
 
 interface CheckoutFormProps {
@@ -126,7 +126,7 @@ const Checkout = () => {
 	const { customer, token, logout, setNavigateTo } = useAuth();
 	const navigate = useNavigate();
 	const [requestOrderLoading, setRequestOrderLoading] = useDisclosure();
-	const { cartItems, fetchCartItems, error, loading, setLoading } = useCart();
+	const { cartItems, fetchCartItems, error, loading, setLoading, setCartItems } = useCart();
 	const { toast } = useToast();
 	const [couriers, setCouriers] = useState<CourierProps[]>([]);
 	const [staff, setStaff] = useState<StaffProps[]>([]);
@@ -141,7 +141,7 @@ const Checkout = () => {
 	const [isAgreeTerms, setIsAgreeTerms] = useState<boolean>(false);
 	const [authModalOpen, setAuthModalOpen] = useState(false);
 	const [authModalTab, setAuthModalTab] = useState<"login" | "registration">(
-		"login"
+		"registration"
 	);
 	const [isAuthenticating, setIsAuthenticating] = useState<boolean>(false);
 	const [recentlyAuthenticated, setRecentlyAuthenticated] = useState<boolean>(false);
@@ -211,7 +211,17 @@ const Checkout = () => {
 	const [checkoutFormData, setCheckoutFormData] = useState<CheckoutFormProps>(
 		() => {
 			const saved = localStorage.getItem("guestCheckout");
-			if (saved) return JSON.parse(saved);
+			if (saved) {
+				try {
+					const parsed = JSON.parse(saved);
+					// Ensure file arrays are valid arrays and contain only Blobs (they won't after JSON, so reset)
+					if (!Array.isArray(parsed.designFiles)) parsed.designFiles = [];
+					else parsed.designFiles = [];
+					return parsed;
+				} catch {
+					// fallthrough
+				}
+			}
 			return {
 				name: customer?.name || "",
 				email: customer?.email || "",
@@ -246,46 +256,16 @@ const Checkout = () => {
 		}));
 		// persist for guests
 		setTimeout(() => {
-			localStorage.setItem(
-				"guestCheckout",
-				JSON.stringify({
-					...checkoutFormData,
-					[name]: value,
-				})
-			);
+			// Do not persist Files/Blobs
+			const toSave = stripBlobs({
+				...checkoutFormData,
+				[name]: value,
+			});
+			localStorage.setItem("guestCheckout", JSON.stringify(toSave));
 		});
 	};
 
-	// When name or email is blurred, optionally check if email exists to decide login vs registration
-	const handleBlur = async (
-		e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-	) => {
-		const { name } = e.target;
-		if (name !== "email" && name !== "name") return;
-		const email = checkoutFormData.email?.trim();
-		const nameVal = checkoutFormData.name?.trim();
-		if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
-		try {
-			const res = await customerService.checkEmailExists(email);
-			if (res?.exists) {
-				// Email registered: prepare login tab with email prefilled
-				setAuthModalTab("login");
-				setPrefillRegistration({});
-				setIsAuthenticating(true);
-				setAuthModalOpen(true);
-			} else {
-				// New email: always take to registration with email, include name if provided
-				setAuthModalTab("registration");
-				setPrefillRegistration(nameVal ? { name: nameVal, email } : { email });
-				setIsAuthenticating(true);
-				setAuthModalOpen(true);
-			}
-		} catch (err: unknown) {
-			// Non-blocking; just log
-			const msg = err instanceof Error ? err.message : String(err);
-			console.log("checkEmailExists failed:", msg);
-		}
-	};
+	// Removed email/name blur modal trigger. The auth modal opens only after pressing Request Order.
 
 	const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
 		if (e.target.files) {
@@ -294,10 +274,10 @@ const Checkout = () => {
 				Math.abs(checkoutFormData.designFiles.length - 5)
 			);
 
-			setCheckoutFormData({
-				...checkoutFormData,
-				designFiles: [...checkoutFormData.designFiles, ...files],
-			});
+			setCheckoutFormData((prev) => ({
+				...prev,
+				designFiles: [...prev.designFiles, ...files],
+			}));
 			// do not persist files to localStorage for security
 		}
 	};
@@ -376,29 +356,32 @@ const Checkout = () => {
 			}
 
 			if (isValid) {
-				// If guest, open auth modal (login or registration based on email)
-				if (!token || !customer) {
+				// Resolve freshest auth data (combined flows may not have context updated yet)
+				let authToken: string | undefined = token as string | undefined;
+				let authCustomer: any = customer || null;
+				if (!authToken || !authCustomer) {
+					const freshToken = localStorage.getItem("token") || undefined;
+					const freshCustomerRaw = localStorage.getItem("customer");
+					const freshCustomer = freshCustomerRaw ? JSON.parse(freshCustomerRaw) : null;
+					authToken = freshToken;
+					authCustomer = freshCustomer;
+				}
+
+				// If still not authenticated, open auth modal (registration-first)
+				if (!authToken || !authCustomer) {
 					localStorage.setItem(
 						"guestCheckout",
 						JSON.stringify(checkoutFormData)
 					);
 					const email = checkoutFormData.email?.trim();
 					const nameVal = checkoutFormData.name?.trim();
+					// Always show registration first; prefill any known fields (name, email, phone)
+					const phoneVal = checkoutFormData.phone?.trim();
+					setAuthModalTab("registration");
 					if (email) {
-						try {
-							const res = await customerService.checkEmailExists(email);
-							if (res?.exists) {
-								setAuthModalTab("login");
-								setPrefillRegistration({});
-							} else {
-								setAuthModalTab("registration");
-								setPrefillRegistration({ name: nameVal, email });
-							}
-						} catch {
-							setAuthModalTab("login");
-						}
+						setPrefillRegistration({ name: nameVal, email, phone: phoneVal });
 					} else {
-						setAuthModalTab("login");
+						setPrefillRegistration({ name: nameVal, phone: phoneVal });
 					}
 					setIsAuthenticating(true);
 					setAuthModalOpen(true);
@@ -407,41 +390,59 @@ const Checkout = () => {
 
 				setRequestOrderLoading.open();
 
-				const orderItems = cartItems.map(
-					({
-						productId,
-						productVariantId,
-						quantity,
-						size,
-						widthInch,
-						heightInch,
-						price,
-					}) => ({
-						productId,
-						productVariantId,
-						quantity,
-						size,
-						widthInch,
-						heightInch,
-						price,
-					})
-				);
+				// Build order items robustly: prefer current cartItems; fallback to guestCart snapshot
+				let orderItems = cartItems.map(({
+					productId,
+					productVariantId,
+					quantity,
+					size,
+					widthInch,
+					heightInch,
+					price,
+				}) => ({
+					productId,
+					productVariantId,
+					quantity,
+					size,
+					widthInch,
+					heightInch,
+					price,
+				}));
+				if (!orderItems.length) {
+					const guest = localStorage.getItem("guestCart");
+					if (guest) {
+						try {
+							const parsed = JSON.parse(guest) as Array<{
+								productId: number;
+								productVariantId: number;
+								quantity: number;
+								size?: number | null;
+								widthInch?: number | null;
+								heightInch?: number | null;
+								price: number;
+							}>;
+							orderItems = parsed.map((g) => ({
+								productId: g.productId,
+								productVariantId: g.productVariantId,
+								quantity: g.quantity,
+								size: g.size ?? null,
+								widthInch: g.widthInch ?? null,
+								heightInch: g.heightInch ?? null,
+								price: Number(g.price),
+							}));
+						} catch {}
+					}
+				}
 
 				// Use a local variable to ensure we send the most recent staffId
 				const staffIdToSend =
 					checkoutFormData.staffId === null
 						? null
 						: Number(checkoutFormData.staffId);
-				// console.debug("Checkout: sending staffId ->", staffIdToSend);
-				// toast({
-				// 	description: `Staff Id: ${staffIdToSend}`,
-				// 	variant: "success",
-				// 	duration: 10000,
-				// });
 
 				const response = await orderService.createOrderRequest(
-					token,
-					customer.customerId,
+					authToken as string,
+					authCustomer.customerId,
 					checkoutFormData.name,
 					checkoutFormData.email,
 					checkoutFormData.phone,
@@ -464,10 +465,32 @@ const Checkout = () => {
 						variant: "success",
 						duration: 10000,
 					});
+
+					// After successful order: clear server cart (if authenticated)
+					try {
+						if (authToken && authCustomer?.customerId) {
+							const serverCart = await cartService.fetchAllCartItems(
+								authToken,
+								authCustomer.customerId
+							);
+							const items: Array<{ cartItemId: number }> =
+								serverCart?.data?.cartItems ?? serverCart?.cartItems ?? [];
+							for (const it of items) {
+								try {
+									await cartService.deleteCartItem(authToken, it.cartItemId);
+								} catch {}
+							}
+							// Clear UI cart immediately for responsiveness
+							setCartItems([]);
+						}
+					} catch {}
 				}
-				navigate(routes.products.path);
-				await fetchCartItems();
+				// Clear any local guest snapshots BEFORE refreshing to avoid repopulating UI from localStorage
 				localStorage.removeItem("guestCheckout");
+				localStorage.removeItem("guestCart");
+				// Refresh client cart view and navigate away
+				await fetchCartItems();
+				navigate(routes.products.path);
 			}
 		} catch (err: unknown) {
 			setRequestOrderLoading.close();
@@ -478,6 +501,9 @@ const Checkout = () => {
 				variant: "destructive",
 				duration: 10000,
 			});
+		} finally {
+			// Always close the loading overlay
+			setRequestOrderLoading.close();
 		}
 	};
 
@@ -540,7 +566,10 @@ const Checkout = () => {
 				};
 				
 				console.log("Merged checkout data:", mergedData);
-				setCheckoutFormData(mergedData);
+				// Ensure file arrays are valid arrays (cannot restore blobs from JSON)
+				if (!Array.isArray(mergedData.designFiles)) (mergedData as any).designFiles = [];
+				else (mergedData as any).designFiles = [];
+				setCheckoutFormData(mergedData as any);
 
 				// Clear the saved checkout data
 				localStorage.removeItem("guestCheckout");
@@ -647,6 +676,25 @@ const Checkout = () => {
 				defaultTab={authModalTab}
 				initialLoginEmail={checkoutFormData.email}
 				initialRegistration={prefillRegistration}
+				showOrderActionButtons={true}
+				onLoginAndOrder={async () => {
+					// Prevent redirect while cart context updates
+					setIsAuthenticating(true);
+					setRecentlyAuthenticated(true);
+					// Ensure we have latest form data persisted
+					localStorage.setItem("guestCheckout", JSON.stringify(stripBlobs(checkoutFormData)));
+					// Close modal and place the order immediately
+					setAuthModalOpen(false);
+					await handleRequestOrder();
+				}}
+				onRegisterAndOrder={async () => {
+					// Prevent redirect while cart context updates
+					setIsAuthenticating(true);
+					setRecentlyAuthenticated(true);
+					localStorage.setItem("guestCheckout", JSON.stringify(stripBlobs(checkoutFormData)));
+					setAuthModalOpen(false);
+					await handleRequestOrder();
+				}}
 				onSuccess={async () => {
 					console.log("Auth success callback triggered");
 					setIsAuthenticating(true); // Set authentication flag to prevent redirect
@@ -704,7 +752,6 @@ const Checkout = () => {
 											name="name"
 											value={checkoutFormData.name}
 											onChange={handleChange}
-											onBlur={handleBlur}
 											error={errors.name ? true : false}
 										/>
 
@@ -729,7 +776,6 @@ const Checkout = () => {
 											readOnly={false}
 											value={checkoutFormData.email}
 											onChange={handleChange}
-											onBlur={handleBlur}
 										/>
 									</div>
 
@@ -836,11 +882,25 @@ const Checkout = () => {
 													key={index}
 													className="flex items-start justify-center flex-col gap-2 overflow-hidden"
 												>
-													<img
-														className="w-36 h-36 rounded-md"
-														src={URL.createObjectURL(designFile)}
-														alt="Not Found"
-													/>
+													{(() => {
+														const url = safeCreateObjectURL(designFile);
+														if (url) {
+															return (
+																<img className="w-36 h-36 rounded-md" src={url} alt="Design" />
+															);
+														}
+														// if a string URL somehow exists
+														if (typeof designFile === "string") {
+															return (
+																<img className="w-36 h-36 rounded-md" src={designFile} alt="Design" />
+															);
+														}
+														return (
+															<div className="w-36 h-36 rounded-md bg-gray-200 flex items-center justify-center text-xs text-gray-600">
+																Preview unavailable
+															</div>
+														);
+													})()}
 
 													<Button
 														size="sm"
@@ -903,7 +963,7 @@ const Checkout = () => {
 
 										{errors.deliveryMethod && (
 											<p className="text-rose-500 font-semibold text-sm">
-												{errors.deliveryMethod}
+																												{/* error text */}
 											</p>
 										)}
 									</div>
@@ -914,7 +974,7 @@ const Checkout = () => {
 												<h3 className="text-base font-semibold">
 													Choose your nearest courier service.
 													<span className="text-skyblue"> *</span>
-												</h3>
+																					</h3>
 												<Select
 													onValueChange={(courierId) => {
 														setCheckoutFormData((prevData) => ({

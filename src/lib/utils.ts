@@ -44,3 +44,33 @@ export const calculateSquareFeet = (
 
 	return parseFloat((widthFeet * heightFeet).toFixed(2));
 };
+
+// Blob/File utilities to safely handle image previews and persistence
+export const isBlobLike = (v: unknown): v is Blob =>
+	typeof Blob !== "undefined" && v instanceof Blob;
+
+export const safeCreateObjectURL = (v: unknown): string | null => {
+	if (typeof window === "undefined" || !("URL" in window)) return null;
+	if (isBlobLike(v)) {
+		try {
+			return URL.createObjectURL(v);
+		} catch {
+			return null;
+		}
+	}
+	return null;
+};
+
+export const stripBlobs = <T>(input: T): T => {
+	if (Array.isArray(input)) {
+		return input.map((v) => (isBlobLike(v) ? undefined : stripBlobs(v))) as unknown as T;
+	}
+	if (input && typeof input === "object") {
+		const out: Record<string, any> = {};
+		for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
+			out[k] = isBlobLike(v) ? undefined : stripBlobs(v as any);
+		}
+		return out as T;
+	}
+	return input;
+};
