@@ -49,7 +49,7 @@ interface CheckoutFormProps {
 	additionalNotes: string;
 	designFiles: File[] | [];
 	deliveryMethod: string;
-	// paymentMethod: string;
+	paymentMethod: "online-payment" | "cod-payment";
 	courierId: number | null;
 	courierAddress: string;
 	staffId: number | null;
@@ -217,6 +217,8 @@ const Checkout = () => {
 					// Ensure file arrays are valid arrays and contain only Blobs (they won't after JSON, so reset)
 					if (!Array.isArray(parsed.designFiles)) parsed.designFiles = [];
 					else parsed.designFiles = [];
+					// Ensure a safe default for payment method if missing in saved data
+					if (!parsed.paymentMethod) parsed.paymentMethod = "cod-payment";
 					return parsed;
 				} catch {
 					// fallthrough
@@ -230,9 +232,9 @@ const Checkout = () => {
 				additionalNotes: "",
 				designFiles: [],
 				deliveryMethod: "",
+				paymentMethod: "cod-payment",
 				courierId: null,
 				courierAddress: "",
-				// paymentMethod: "",
 				staffId: null,
 				couponId: null,
 			} as CheckoutFormProps;
@@ -247,7 +249,10 @@ const Checkout = () => {
 	) => {
 		const { name, value } = e.target;
 
-		validateField(name, value);
+		// Skip validation for fields not defined in the Joi schema (e.g., paymentMethod)
+		if (name !== "paymentMethod") {
+			validateField(name, value);
+		}
 		// no-op placeholder kept for potential payment field branching
 
 		setCheckoutFormData((prevData) => ({
@@ -454,8 +459,16 @@ const Checkout = () => {
 					checkoutFormData.courierAddress,
 					staffIdToSend,
 					checkoutFormData.couponId,
-					// checkoutFormData.paymentMethod,
-					orderItems
+					orderItems,
+					{
+						// Explicitly mark this as an online intent so backend records method: 'online'.
+						// Staff will initiate the payment session later as per guide.
+						method:
+							checkoutFormData.paymentMethod === "online-payment"
+								? "online"
+								: "cod",
+						paymentMethod: checkoutFormData.paymentMethod,
+					}
 				);
 
 				if (response.status === 201) {
@@ -465,6 +478,17 @@ const Checkout = () => {
 						variant: "success",
 						duration: 10000,
 					});
+
+					// Online payment: do not start gateway here.
+					// Staff will review your order and send you a secure payment link.
+					if (checkoutFormData.paymentMethod === "online-payment") {
+						toast({
+							description:
+								"You've chosen Online Payment. Our staff will confirm your order and send a payment link via SMS/Email.",
+							variant: "default",
+							duration: 9000,
+						});
+					}
 
 					// After successful order: clear server cart (if authenticated)
 					try {
@@ -1216,12 +1240,12 @@ const Checkout = () => {
 
 							<Separator className="my-4 bg-gray/30" />
 
-							{/* <div className="form-group flex flex-col items-start justify-start my-6 gap-2">
+							<div className="form-group flex flex-col items-start justify-start my-6 gap-2">
 								<div className="">
 									<h3 className="text-base font-medium">Payment Method</h3>
 								</div>
-								<div className="flex items-center gap-2">
-									<Input
+								<div className="flex items-center gap-2 cursor-pointer" onClick={() => setCheckoutFormData(prev => ({...prev, paymentMethod: "online-payment"}))}>
+									<input
 										type="radio"
 										id="online-payment"
 										value="online-payment"
@@ -1239,8 +1263,8 @@ const Checkout = () => {
 										Online Payment (Bkash/Nagad/Bank)
 									</Label>
 								</div>
-								<div className="flex items-center gap-2">
-									<Input
+								<div className="flex items-center gap-2 cursor-pointer" onClick={() => setCheckoutFormData(prev => ({...prev, paymentMethod: "cod-payment"}))}>
+									<input
 										type="radio"
 										id="cod-payment"
 										value="cod-payment"
@@ -1262,7 +1286,7 @@ const Checkout = () => {
 										{errors.paymentMethod}
 									</p>
 								)}
-							</div> */}
+							</div>
 
 							{discountApplied ? (
 								<div className="form-group flex items-center justify-start gap-2 my-6">

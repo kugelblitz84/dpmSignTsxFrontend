@@ -7,6 +7,7 @@ type AxiosErrorData = {
 	status?: number;
 	message?: string;
 	error?: string;
+	details?: string;
 };
 
 class Order {
@@ -22,7 +23,6 @@ class Order {
 		courierAddress: Joi.StringSchema;
 		staffId: Joi.NumberSchema;
 		couponId: Joi.NumberSchema;
-		// paymentMethod: Joi.StringSchema;
 	};
 	private orderRequestCreateUrl: string;
 	private fetchOrderByCustomerUrl: string;
@@ -93,25 +93,16 @@ class Order {
 				"any.required": "Courier service selection is required.",
 			}),
 			couponId: Joi.number().optional().allow(null),
-			// paymentMethod: Joi.string()
-			// 	.trim()
-			// 	.required()
-			// 	.valid("online-payment", "cod-payment")
-			// 	.messages({
-			// 		"string.base": "Payment method must be a string.",
-			// 		"string.empty": "Please select a payment method.",
-			// 		"any.required":
-			// 			"Payment method selection is required. Please choose either online payment or cash on delivery.",
-			// 	}) as Joi.StringSchema<"online-payment" | "cod-payment">,
 		};
 
 		this.orderRequestCreateUrl = `${apiBaseURL}/order/create-request`;
 		this.fetchOrderByCustomerUrl = `${apiBaseURL}/order/customer`;
 		this.fetchMyOrdersUrl = `${apiBaseURL}/order/my`;
-		this.orderRequestCreateSchema = Joi.object(this.schema);
+		// Allow unknown fields so UI-only fields (e.g., paymentMethod) don't fail validation
+		this.orderRequestCreateSchema = Joi.object(this.schema).unknown(true);
 	}
 
-	// Overloads: legacy (13 args w/o couponId) and current (14 args with couponId)
+	// Overloads (legacy + current)
 	createOrderRequest(
 		token: string,
 		customerId: number,
@@ -133,7 +124,8 @@ class Order {
 			widthInch: number | null;
 			heightInch: number | null;
 			price: number;
-		}[]
+		}[],
+		extraFields?: Record<string, any>
 	): Promise<any>;
 	createOrderRequest(
 		token: string,
@@ -157,7 +149,8 @@ class Order {
 			widthInch: number | null;
 			heightInch: number | null;
 			price: number;
-		}[]
+		}[],
+		extraFields?: Record<string, any>
 	): Promise<any>;
 
 	async createOrderRequest(
@@ -173,15 +166,18 @@ class Order {
 		courierId: number | null,
 		courierAddress: string,
 		staffId: number | null,
-		arg13: number | null | {
-			productId: number;
-			productVariantId: number;
-			quantity: number;
-			size: number | null;
-			widthInch: number | null;
-			heightInch: number | null;
-			price: number;
-		}[],
+		arg13:
+			| number
+			| null
+			| {
+					productId: number;
+					productVariantId: number;
+					quantity: number;
+					size: number | null;
+					widthInch: number | null;
+					heightInch: number | null;
+					price: number;
+				}[],
 		arg14?: {
 			productId: number;
 			productVariantId: number;
@@ -190,10 +186,10 @@ class Order {
 			widthInch: number | null;
 			heightInch: number | null;
 			price: number;
-		}[]
+		}[],
+		extraFields?: Record<string, any>
 	): Promise<any> {
 		try {
-			// Support both signatures by normalizing args
 			let couponId: number | null = null;
 			let orderItems:
 				| {
@@ -204,17 +200,17 @@ class Order {
 						widthInch: number | null;
 						heightInch: number | null;
 						price: number;
-				  }[]
+					}[]
 				| [] = [];
+
 			if (Array.isArray(arg13)) {
 				orderItems = arg13;
 			} else {
-				couponId = arg13;
-				orderItems = arg14 || [];
+				couponId = (arg13 as number | null) ?? null;
+				orderItems = (arg14 as any[]) || [];
 			}
-			const form = new FormData();
 
-			// Append text fields to the FormData object
+			const form = new FormData();
 			form.append("customerId", customerId.toString());
 			form.append("customerName", name);
 			form.append("customerPhone", phone);
@@ -222,23 +218,17 @@ class Order {
 			form.append("billingAddress", billingAddress);
 			form.append("additionalNotes", additionalNotes);
 			form.append("deliveryMethod", deliveryMethod);
-			// form.append("paymentMethod", paymentMethod);
 			form.append("orderItems", JSON.stringify(orderItems));
 
-			// Append courierId even if it's 0; only skip when null/undefined
 			if (courierId !== null && courierId !== undefined) {
 				form.append("courierId", courierId.toString());
 			}
 			if (courierAddress) {
 				form.append("courierAddress", courierAddress);
 			}
-
-			// Append staffId even if it's 0; only skip when null/undefined
 			if (staffId !== null && staffId !== undefined) {
 				form.append("staffId", staffId.toString());
 			}
-
-			// Append couponId even if it's 0; only skip when null/undefined
 			if (couponId !== null && couponId !== undefined) {
 				form.append("couponId", couponId.toString());
 			}
@@ -249,30 +239,22 @@ class Order {
 				}
 			}
 
-			// Optional: minimal debug snapshot (omit heavy FormData iteration)
-			// console.debug("OrderService.createOrderRequest - payload:", {
-			//   customerId,
-			//   customerName: name,
-			//   customerPhone: phone,
-			//   billingAddress,
-			//   additionalNotes,
-			//   deliveryMethod,
-			//   orderItems,
-			//   courierId,
-			//   courierAddress,
-			//   staffId,
-			//   couponId,
-			//   designFiles: designFiles.map((f) => f.name),
-			// });
+			// Append any extra fields (e.g., method, paymentMethod) for backend intent tracking
+			if (extraFields && typeof extraFields === "object") {
+				Object.entries(extraFields).forEach(([key, val]) => {
+					if (val === undefined || val === null) return;
+					// If it's a non-file object/array, stringify to keep shape
+					if (typeof val === "object") {
+						form.append(key, JSON.stringify(val));
+					} else {
+						form.append(key, String(val));
+					}
+				});
+			}
 
-			// Let axios/browser set the Content-Type (with correct boundary) for FormData
 			const response = await apiClient.post(this.orderRequestCreateUrl, form, {
-				headers: {
-					Authorization: `Bearer ${token}`,
-				},
+				headers: { Authorization: `Bearer ${token}` },
 			});
-
-			// (Previously printed FormData entries here — removed duplicate)
 			return response.data;
 		} catch (err: unknown) {
 			let fetchRequestError: ApiError = {
@@ -293,6 +275,56 @@ class Order {
 			throw fetchRequestError;
 		}
 	}
+
+	// Start an online payment session for an order
+	startOnlinePayment = async (
+		token: string,
+		payload: {
+			orderId: number;
+			amount: number;
+			paymentMethod?: "online-payment";
+			customerName: string;
+			customerEmail: string;
+			customerPhone: string;
+		}
+	) => {
+		try {
+			const body = {
+				orderId: payload.orderId,
+				amount: payload.amount,
+				paymentMethod: payload.paymentMethod || "online-payment",
+				customerName: payload.customerName,
+				customerEmail: payload.customerEmail,
+				customerPhone: payload.customerPhone,
+			};
+
+			const response = await apiClient.post(`${apiBaseURL}/order/add-payment`, body, {
+				headers: {
+					Authorization: `Bearer ${token}`,
+				},
+			});
+
+			return response.data;
+		} catch (err: unknown) {
+			let fetchRequestError: ApiError = {
+				name: "Error",
+				message: "Could not start online payment.",
+				error: err as Error,
+				status: undefined,
+			};
+			if (err instanceof AxiosError) {
+				const data = (err.response?.data || {}) as AxiosErrorData;
+				const msg = data.message || data.error || (err as any).message;
+				fetchRequestError = {
+					name: err.name || "AxiosError",
+					status: data.status ?? (err as any).status,
+					message: data.details ? `${msg}: ${data.details}` : msg,
+					error: err,
+				} as ApiError;
+			}
+			throw fetchRequestError;
+		}
+	};
 
 	fetchAllOrdersByCustomer = async (token: string, customerId: number) => {
 		try {

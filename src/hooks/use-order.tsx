@@ -137,7 +137,9 @@ const OrderProvider = ({ children }: { children: React.ReactNode }) => {
 		setError(null);
 		try {
 			const response = await orderService.fetchMyOrders(token);
-			const updatedOrders = (response.data.orders || []).map(
+			// Normalize and sort newest first by createdAt
+			const updatedOrders = (response.data.orders || [])
+				.map(
 				(orderItem: OrderProps) => ({
 					...orderItem,
 					images:
@@ -146,7 +148,12 @@ const OrderProvider = ({ children }: { children: React.ReactNode }) => {
 							imageUrl: urljoin(apiStaticURL, "/order-images", image.imageName),
 						})) || [],
 				})
-			);
+				)
+				.sort((a: any, b: any) => {
+					const at = new Date(a.createdAt as any).getTime();
+					const bt = new Date(b.createdAt as any).getTime();
+					return bt - at; // newest first
+				});
 			setOrders(updatedOrders);
 		} catch (err: any) {
 			setError(err.message || "Failed to fetch orders.");
