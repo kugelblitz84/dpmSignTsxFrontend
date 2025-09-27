@@ -221,7 +221,7 @@ const Products = () => {
 					)}
 
 					{!loading && sortedProducts.length > 0 ? (
-						<div className="col-span-5 xl:col-span-5 w-full flex gap-6 md:gap-7 flex-wrap flex-row justify-center lg:justify-start items-stretch">
+						<div className="col-span-5 xl:col-span-5 w-full flex gap-6 md:gap-7 flex-wrap flex-row justify-center lg:justify-start items-start">
 							{sortedProducts.map((product, index) => (
 								<ProductCard key={index} product={product} />
 							))}
