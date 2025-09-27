@@ -113,6 +113,7 @@ const NestedCategoryAccordion = ({
 }) => {
 	const [categoryTree, setCategoryTree] = useState<CategoryTreeItem[]>([]);
 	const [expandedItems, setExpandedItems] = useState<string[]>([]);
+	// We now use a unified compact card style for all viewports (previously only mobile)
 
 	useEffect(() => {
 		const buildCategoryTree = () => {
@@ -228,14 +229,15 @@ const NestedCategoryAccordion = ({
 				: indentClasses[indentClasses.length - 1];
 
 		if (!hasChildren) {
+			// Leaf node unified box style (previously mobile only)
 			return (
 				<div
 					key={category.categoryId}
 					className={cn(
-						"flex items-center py-2 px-3 rounded-md transition-all",
-						isSelected && "hover:text-skyblue",
-						indentClass
+						"flex items-start gap-2 px-3 py-2 rounded border border-slate-200 bg-slate-50 hover:bg-slate-100 w-full min-h-[40px] text-[12px] leading-tight",
+						isSelected && "ring-1 ring-skyblue/50 bg-slate-100"
 					)}
+					title={category.name}
 				>
 					<Checkbox
 						id={`category-${category.categoryId}`}
@@ -243,62 +245,99 @@ const NestedCategoryAccordion = ({
 						onCheckedChange={(checked) =>
 							handleCheckboxChange(category.categoryId, checked === true)
 						}
-						className="mr-2 transition-all"
+						className="mr-1 transition-all mt-[2px] scale-90"
 					/>
 					<Label
 						htmlFor={`category-${category.categoryId}`}
 						className={cn(
-							"text-sm font-medium cursor-pointer flex-grow transition-all",
-							isSelected && "font-semibold"
+							"cursor-pointer font-medium whitespace-normal break-words leading-snug text-[12px] flex-grow",
+							isSelected && "font-semibold text-skyblue"
 						)}
 					>
 						{category.name}
-						{category.products && (
-							<span className="text-xs text-neutral-400 ml-1 transition-all">
-								({category.products.length})
-							</span>
-						)}
 					</Label>
 				</div>
 			);
 		}
-console.log(categories)
+
 		return (
 			<AccordionItem
 				value={`category-${category.categoryId}`}
 				key={category.categoryId}
 				className="border-none"
 			>
-				<div className={cn("flex items-center", indentClass)}>
+				<div className={cn("flex flex-col w-full", indentClass)}>
 					<AccordionTrigger
 						className={cn(
-							"py-2 pr-2 rounded-md transition-all flex items-center flex-grow",
-							"data-[state=open]:text-skyblue",
-							isSelected && "hover:text-skyblue"
+							"px-0 py-0 bg-transparent hover:no-underline [&[data-state=open]>div]:ring-1 [&[data-state=open]>div]:ring-skyblue/40",
+							isSelected && "",
+							"group"
 						)}
 					>
-						<div className="flex items-center w-full">
-							<Label
-								htmlFor={`category-${category.categoryId}`}
-								className={cn(
-									"text-sm font-medium cursor-pointer transition-all",
-									isSelected && "font-semibold"
-								)}
-								onClick={(e) => e.stopPropagation()}
-							>
-								{category.name}
-							</Label>
-							{category.products && (
-								<span className="text-xs text-neutral-400 ml-1 mr-2 transition-all">
-									({category.products.length})
-								</span>
+						<div
+							className={cn(
+								"flex items-start gap-2 px-3 py-2 rounded border border-slate-300 bg-white group-data-[state=open]:bg-slate-50 w-full min-h-[42px] text-[12px] leading-tight shadow-sm transition-colors",
+								checkedCategories.includes(category.categoryId) &&
+									"ring-1 ring-skyblue/50 bg-slate-50"
 							)}
+							onClick={(e) => {
+								// allow checkbox area to toggle selection without collapsing
+								const target = e.target as HTMLElement;
+								if (target.closest('button,input,label')) return; // stop duplicate toggle
+							}}
+						>
+							<Checkbox
+								id={`category-${category.categoryId}-parent`}
+								checked={checkedCategories.includes(category.categoryId)}
+								onClick={(e) => e.stopPropagation()}
+								onCheckedChange={(checked) =>
+									handleCheckboxChange(category.categoryId, checked === true)
+								}
+								className="scale-90 mt-[2px]"
+							/>
+							<span className="whitespace-normal break-words leading-snug text-[12px] font-semibold text-slate-700 flex-grow text-left">
+								{category.name}
+								{category.products && (
+									<span className="text-xs font-normal text-neutral-400 ml-1">({category.products.length})</span>
+								)}
+							</span>
 						</div>
 					</AccordionTrigger>
 
-				<AccordionContent className="pt-1 pb-0">
-					<div className="transition-all">
-						{category.children.map((child) => renderCategory(child, level + 1))}
+				<AccordionContent className="pt-2 pb-0">
+					<div className="flex flex-col gap-2 px-0">
+						{category.children.map((child) => {
+							const baseIndentLevels = ["ml-3", "ml-6", "ml-9", "ml-12", "ml-14"]; // progressive indent
+							const childIndent = baseIndentLevels[Math.min(level, baseIndentLevels.length - 1)];
+							return child.children.length === 0 ? (
+								<div
+									key={child.categoryId}
+									className={cn(
+										"relative flex items-start gap-2 px-3 py-2 rounded border border-slate-200 bg-slate-50 hover:bg-slate-100 text-[12px] leading-tight w-full min-h-[40px]",
+										childIndent
+									)}
+									title={child.name}
+								>
+									{/* vertical guide line */}
+									<span className="pointer-events-none absolute left-1 top-0 bottom-0 border-l border-slate-200" />
+									<Checkbox
+										id={`category-${child.categoryId}`}
+										checked={checkedCategories.includes(child.categoryId)}
+										onCheckedChange={(checked) =>
+											handleCheckboxChange(child.categoryId, checked === true)
+										}
+										className="scale-90 mt-[2px]"
+									/>
+									<span className="whitespace-normal break-words leading-snug text-[12px] flex-grow">
+										{child.name}
+									</span>
+								</div>
+							) : (
+								<div key={child.categoryId} className={cn("w-full", childIndent)}>
+									{renderCategory(child, level + 1)}
+								</div>
+							);
+						})}
 					</div>
 				</AccordionContent>
 				</div>

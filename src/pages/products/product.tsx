@@ -19,13 +19,10 @@ import {
 	CardFooter,
 	CardHeader,
 } from "@/components/ui/card";
-import { Swiper, SwiperSlide } from "swiper/react"; // CORRECTED LINE HERE
-import "swiper/css";
-import "swiper/css/pagination";
-import "swiper/css/navigation";
+// Swiper removed for thumbnails (using custom scroll implementation)
 import ProductCard from "@/components/product-card";
 import { Minus, Plus } from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
+// import { useIsMobile } from "@/hooks/use-mobile"; // no longer needed for thumbnails
 import routes from "@/routes";
 import {
 	ProductImageProps,
@@ -52,15 +49,26 @@ const Product = () => {
 		setLoading: setCartLoading,
 	} = useCart();
 	const { toast } = useToast();
-	const isMobile = useIsMobile();
+	// const isMobile = useIsMobile(); // not needed after refactor
 	const navigate = useNavigate();
 	const { slug } = useParams();
 	const { products, randomProducts, setExcludeProductId, loading } =
 		useProduct();
 	const [product, setProduct] = useState<ProductProps | null>(null);
 
+	// (Removed dynamic margin logic; attributes & reviews moved directly beneath images to remove structural gap)
+
 	const [activeProductImage, setActiveProductImage] =
 		useState<ProductImageProps | null>(null);
+	// Track natural dimensions to adapt layout for any aspect ratio (mobile & narrow viewports)
+	const [imageMeta, setImageMeta] = useState<
+		| {
+			w: number;
+			h: number;
+			orientation: "portrait" | "landscape" | "square";
+		}
+		| null
+	>(null);
 	const [selectedVariationItems, setSelectedVariationItems] = useState<{
 		[key: string]: number | null;
 	}>({});
@@ -459,65 +467,98 @@ const Product = () => {
 
 			{/* Main Product Content Area */}
 			<div className="row xl:relative pb-10 grid grid-cols-1 xl:grid-cols-3 place-items-center items-start justify-between gap-0 xl:gap-8">
-				{/* Left Column: Images (col-span-2 on xl) */}
-				<div className="w-full flex flex-col-reverse md:grid md:grid-cols-5 gap-2 xl:col-span-2">
+				{/* Left Column: Images + Attributes + Reviews (col-span-2 on xl) */}
+			<div className="w-full md:grid md:grid-cols-5 gap-3 xl:col-span-2">
 					{!loading && product && (
 						<>
-							{/* Images Slider (Thumbnails) */}
-							<div className="w-full h-full">
-								<Swiper
-									spaceBetween={8}
-									direction={isMobile ? "horizontal" : "vertical"}
-									breakpoints={{
-										0: {
-											slidesPerView: 5,
-										},
-										768: {
-											slidesPerView: 5,
-										},
-										1280: {
-											slidesPerView: 5,
-										},
-									}}
-								>
-									{product?.images.map((image, index) => (
-										<SwiperSlide key={index}>
-											<div className="flex items-center justify-center rounded-md overflow-hidden border-2 border-transparent hover:border-skyblue cursor-pointer transition-all duration-300">
-												<img
-													className="w-40 h-20 object-cover object-center"
-													onClick={() => setActiveProductImage(image)}
-													src={image.imageUrl}
-													alt={product?.name}
-												/>
-											</div>
-										</SwiperSlide>
-									))}
-								</Swiper>
-							</div>
-
-							{/* Main Product Image */}
-							<div className="w-full col-span-4">
+						{/* Main Product Image (first) */}
+						<div className="w-full col-span-4 order-1 md:order-none">
 								<Dialog>
 									<DialogTrigger asChild>
-										<div className="flex items-center justify-center rounded-md overflow-hidden cursor-pointer">
-											<img
-												className="max-w-full h-auto"
-												src={activeProductImage?.imageUrl}
-												alt={product?.name}
-											/>
+										<div
+											className="relative w-full rounded-md cursor-pointer bg-white border border-gray/20 p-2 xl:max-w-[620px] 2xl:max-w-[700px] mx-auto"
+										>
+											{/* Container maintains visibility before image load */}
+										<div className="relative w-full flex items-center justify-center overflow-hidden min-h-[240px] sm:min-h-[260px] md:min-h-[320px]">
+												{activeProductImage?.imageUrl ? (
+													<img
+														loading="lazy"
+														src={activeProductImage.imageUrl}
+														alt={product?.name || 'Product image'}
+														onLoad={(e) => {
+															const w = e.currentTarget.naturalWidth;
+															const h = e.currentTarget.naturalHeight;
+															let orientation: 'portrait' | 'landscape' | 'square' = 'square';
+															if (w > h) orientation = 'landscape';
+															else if (h > w) orientation = 'portrait';
+															setImageMeta({ w, h, orientation });
+														}}
+													className={(() => {
+														if (!imageMeta) return 'object-contain max-h-[70vh] w-full';
+														if (imageMeta.orientation === 'portrait') return 'object-contain h-[70vh] w-auto max-w-full';
+														if (imageMeta.orientation === 'landscape') return 'object-contain w-full h-auto max-h-[70vh]';
+														return 'object-contain w-full h-auto max-h-[70vh]';
+													})()}
+												/>
+												) : (
+													<div className="w-full h-full flex items-center justify-center text-xs text-gray bg-gray/5 animate-pulse">
+														Image unavailable
+													</div>
+												)}
+											</div>
 										</div>
 									</DialogTrigger>
-									<DialogContent className="max-w-full w-full xl:w-[1000px] h-[80vh] overflow-auto">
-										<div className="mt-0">
+									<DialogContent className="max-w-full w-full xl:w-[1000px] h-[85vh] overflow-hidden flex items-center justify-center">
+										{activeProductImage?.imageUrl && (
 											<img
-												className="max-w-full h-auto"
-												src={activeProductImage?.imageUrl}
-												alt={product?.name}
+												loading="eager"
+												src={activeProductImage.imageUrl}
+												alt={product?.name || 'Product image enlarged'}
+												className="object-contain max-h-full max-w-full"
 											/>
-										</div>
+										)}
 									</DialogContent>
 								</Dialog>
 							</div>
+
+						{/* Thumbnails: horizontal strip on mobile, vertical list on desktop */}
+						<div className="w-full mt-3 md:mt-0 md:col-span-1 md:row-span-full order-2 md:order-none">
+							{/* Mobile horizontal scroll */}
+							<div className="flex md:hidden gap-2 overflow-x-auto pb-1 -mx-1 px-1" aria-label="Product image thumbnails">
+								{product.images.map((img, idx) => (
+									<button
+										key={idx}
+										onClick={() => setActiveProductImage(img)}
+										className={`shrink-0 rounded-md border-2 transition-all duration-300 aspect-square w-20 bg-white flex items-center justify-center ${activeProductImage?.imageUrl === img.imageUrl ? 'border-skyblue' : 'border-transparent hover:border-skyblue'}`}
+										aria-label={`Thumbnail ${idx + 1}`}
+									>
+										<img
+											src={img.imageUrl}
+											alt={product?.name || 'Thumbnail'}
+											className="w-full h-full object-cover object-center"
+										/>
+									</button>
+								))}
+							</div>
+
+							{/* Desktop vertical stack (simple scroll if overflow) */}
+							<div className="hidden md:flex md:flex-col gap-2 max-h-[600px] overflow-y-auto pr-1" aria-label="Product image thumbnails vertical">
+								{product.images.map((img, idx) => (
+									<button
+										key={idx}
+										onClick={() => setActiveProductImage(img)}
+										className={`rounded-md border-2 transition-all duration-300 aspect-square w-20 md:w-24 bg-white flex items-center justify-center ${activeProductImage?.imageUrl === img.imageUrl ? 'border-skyblue' : 'border-transparent hover:border-skyblue'}`}
+										aria-label={`Thumbnail ${idx + 1}`}
+									>
+										<img
+											src={img.imageUrl}
+											alt={product?.name || 'Thumbnail'}
+											className="w-full h-full object-cover object-center"
+										/>
+									</button>
+								))}
+							</div>
+						</div>
 						</>
 					)}
 
@@ -541,9 +582,78 @@ const Product = () => {
 							</div>
 						</>
 					)}
-				</div>
+				{/* Attributes & Reviews now directly follow images to eliminate vertical gap */}
+				<div className="w-full md:col-span-5 mt-6">
+					{/* Product Attributes */}
+					{!loading && product && <ProductAttributes product={product} />}
+					{loading &&
+						Array(5)
+							.fill(0)
+							.map((_, index) => (
+								<div key={index} className="mb-4">
+									<Skeleton className="h-7 w-40 mb-3" />
+									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+										{Array(4)
+											.fill(0)
+											.map((_, attrIndex) => (
+												<div
+													key={attrIndex}
+													className="flex items-center gap-2"
+												>
+													<Skeleton className="h-5 w-32" />
+													<Skeleton className="h-5 w-20" />
+												</div>
+											))}
+									</div>
+								</div>
+							))}
 
-				{/* Right Column: Product Price Card (col-span-1 on xl) */}
+					{/* Reviews */}
+					<div className="w-full py-5 mt-5 h-auto">
+						{!loading && product && product.reviews && (
+							<>
+								<Separator orientation="horizontal" className="bg-gray/30" />
+								<ProductReview
+									productId={product.productId}
+									reviews={product?.reviews}
+								/>
+							</>
+						)}
+						{loading && (
+							<div className="py-6 space-y-6">
+								<div className="flex justify-between items-center">
+									<Skeleton className="h-8 w-40" />
+									<Skeleton className="h-10 w-32 rounded-md" />
+								</div>
+
+								{Array(3)
+									.fill(0)
+									.map((_, index) => (
+										<div key={index} className="p-4 rounded-lg space-y-3">
+											<div className="flex items-center gap-3">
+												<Skeleton className="h-12 w-12 rounded-full" />
+												<div>
+													<Skeleton className="h-6 w-32 mb-2" />
+													<Skeleton className="h-4 w-20" />
+												</div>
+											</div>
+											<div className="flex gap-1">
+												{Array(5)
+													.fill(0)
+													.map((_, starIdx) => (
+														<Skeleton key={starIdx} className="h-4 w-4" />
+													))}
+											</div>
+											<Skeleton className="h-20 w-full" />
+										</div>
+									))}
+							</div>
+						)}
+					</div>
+				</div>
+			</div>
+
+			{/* Right Column: Product Price Card (col-span-1 on xl) */}
 				<div className="w-full xl:col-span-1 mt-6 xl:mt-0 xl:sticky top-10 xl:top-32">
 					<div className="w-full xl:max-w-full xl:mx-auto">
 						<Card className="shadow-lg">
@@ -693,95 +803,96 @@ const Product = () => {
 													</h5>
 												</div>
 
-												<div className="w-full flex gap-4 items-center">
-													<div className="flex-1 flex items-center gap-4">
-														<div className="flex-1 flex items-center gap-2">
-															{/* Width (Feet and Inches) */}
-															<div className="flex flex-col gap-1">
-																<label className="text-xs text-muted-foreground">Width (Feet and Inches)</label>
-																<div className="flex items-center gap-1">
+												<div className="w-full flex flex-col gap-5 sm:gap-4 items-stretch">
+													{/* Responsive stacked layout: vertical on small, horizontal on sm+ */}
+													<div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6 w-full">
+														{/* Width Group */}
+														<div className="flex flex-col gap-2 w-full">
+															<label className="text-xs font-medium text-muted-foreground tracking-wide uppercase">Width (Feet & Inches)</label>
+															<div className="flex items-center gap-2 w-full max-sm:justify-between">
+																<div className="flex items-center gap-1 w-full">
 																	<Input
-																		type="number"
-																		min={0}
-																		className="w-12 input-type-number"
-																		value={widthFeet === 0 ? "" : widthFeet}
-																		onChange={(e) => {
-																			setWidthFeet(parseInt(e.target.value) || 0);
-																		}}
-																		placeholder="0"
+																		 type="number"
+																		 min={0}
+																		 className="input-type-number w-full max-w-[90px]"
+																		 value={widthFeet === 0 ? "" : widthFeet}
+																		 onChange={(e) => setWidthFeet(parseInt(e.target.value) || 0)}
+																		 placeholder="0"
 																	/>
 																	<span className="text-xs text-muted-foreground">ft</span>
+																</div>
+																<div className="flex items-center gap-1 w-full">
 																	<Input
-																		type="number"
-																		min={0}
-																		max={11}
-																		className="w-12 input-type-number"
-																		value={widthInches === 0 ? "" : widthInches}
-																		onChange={(e) => {
-																			const value = parseInt(e.target.value) || 0;
-																			if (value >= 12) {
-																				// Convert to feet and inches
-																				const additionalFeet = Math.floor(value / 12);
-																				const remainingInches = value % 12;
-																				setWidthFeet(widthFeet + additionalFeet);
-																				setWidthInches(remainingInches);
-																			} else {
-																				setWidthInches(value);
-																			}
-																		}}
-																		placeholder="0"
+																		 type="number"
+																		 min={0}
+																		 max={11}
+																		 className="input-type-number w-full max-w-[90px]"
+																		 value={widthInches === 0 ? "" : widthInches}
+																		 onChange={(e) => {
+																		 	const value = parseInt(e.target.value) || 0;
+																		 	if (value >= 12) {
+																		 		const additionalFeet = Math.floor(value / 12);
+																		 		const remainingInches = value % 12;
+																		 		setWidthFeet(widthFeet + additionalFeet);
+																		 		setWidthInches(remainingInches);
+																		 	} else {
+																		 		setWidthInches(value);
+																		 	}
+																		 }}
+																		 placeholder="0"
 																	/>
 																	<span className="text-xs text-muted-foreground">in</span>
 																</div>
 															</div>
-															
-															<span className="text-sm text-muted-foreground">×</span>
-															
-															{/* Height (Feet and Inches) */}
-															<div className="flex flex-col gap-1">
-																<label className="text-xs text-muted-foreground">Height (Feet and Inches)</label>
-																<div className="flex items-center gap-1">
+														</div> {/* end width group */}
+
+														{/* Height Group */}
+														<div className="flex flex-col gap-2 w-full">
+															<label className="text-xs font-medium text-muted-foreground tracking-wide uppercase">Height (Feet & Inches)</label>
+															<div className="flex items-center gap-2 w-full max-sm:justify-between">
+																<div className="flex items-center gap-1 w-full">
 																	<Input
-																		type="number"
-																		min={0}
-																		className="w-12 input-type-number"
-																		value={heightFeet === 0 ? "" : heightFeet}
-																		onChange={(e) => {
-																			setHeightFeet(parseInt(e.target.value) || 0);
-																		}}
-																		placeholder="0"
+																		 type="number"
+																		 min={0}
+																		 className="input-type-number w-full max-w-[90px]"
+																		 value={heightFeet === 0 ? "" : heightFeet}
+																		 onChange={(e) => setHeightFeet(parseInt(e.target.value) || 0)}
+																		 placeholder="0"
 																	/>
 																	<span className="text-xs text-muted-foreground">ft</span>
+																</div>
+																<div className="flex items-center gap-1 w-full">
 																	<Input
-																		type="number"
-																		min={0}
-																		max={11}
-																		className="w-12 input-type-number"
-																		value={heightInches === 0 ? "" : heightInches}
-																		onChange={(e) => {
-																			const value = parseInt(e.target.value) || 0;
-																			if (value >= 12) {
-																				// Convert to feet and inches
-																				const additionalFeet = Math.floor(value / 12);
-																				const remainingInches = value % 12;
-																				setHeightFeet(heightFeet + additionalFeet);
-																				setHeightInches(remainingInches);
-																			} else {
-																				setHeightInches(value);
-																			}
-																		}}
-																		placeholder="0"
+																		 type="number"
+																		 min={0}
+																		 max={11}
+																		 className="input-type-number w-full max-w-[90px]"
+																		 value={heightInches === 0 ? "" : heightInches}
+																		 onChange={(e) => {
+																		 	const value = parseInt(e.target.value) || 0;
+																		 	if (value >= 12) {
+																		 		const additionalFeet = Math.floor(value / 12);
+																		 		const remainingInches = value % 12;
+																		 		setHeightFeet(heightFeet + additionalFeet);
+																		 		setHeightInches(remainingInches);
+																		 	} else {
+																		 		setHeightInches(value);
+																		 	}
+																		 }}
+																		 placeholder="0"
 																	/>
 																	<span className="text-xs text-muted-foreground">in</span>
 																</div>
 															</div>
-														</div>
-														<div className="flex items-center gap-2">
-															<span className="text-sm text-muted-foreground">=</span>
-															<span className="font-medium text-sm">{sqFeet} sq. ft</span>
-														</div>
+													</div>
+
+													{/* Calculated area */}
+													<div className="flex items-center gap-2 text-sm bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 w-full sm:w-auto mt-1">
+														<span className="text-muted-foreground">=</span>
+														<span className="font-medium">{sqFeet} sq. ft</span>
 													</div>
 												</div>
+											</div>
 											</div>
 										)}
 
@@ -995,74 +1106,7 @@ const Product = () => {
 					</div>
 				</div>
 
-				{/* Bottom-Left Column: Product Attributes & Reviews */}
-				<div className="w-full xl:col-span-2 mt-10 xl:mt-0 overflow-hidden">
-					{!loading && product && <ProductAttributes product={product} />}
-					{loading &&
-						Array(5)
-							.fill(0)
-							.map((_, index) => (
-								<div key={index} className="mb-4">
-									<Skeleton className="h-7 w-40 mb-3" />
-									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-										{Array(4)
-											.fill(0)
-											.map((_, attrIndex) => (
-												<div
-													key={attrIndex}
-													className="flex items-center gap-2"
-												>
-													<Skeleton className="h-5 w-32" />
-													<Skeleton className="h-5 w-20" />
-												</div>
-											))}
-									</div>
-								</div>
-							))}
-
-					{/* review product */}
-					<div className="w-full py-5 mt-5 h-auto">
-						{!loading && product && product.reviews && (
-							<>
-								<Separator orientation="horizontal" className="bg-gray/30" />
-								<ProductReview
-									productId={product.productId}
-									reviews={product?.reviews}
-								/>
-							</>
-						)}
-						{loading && (
-							<div className="py-6 space-y-6">
-								<div className="flex justify-between items-center">
-									<Skeleton className="h-8 w-40" />
-									<Skeleton className="h-10 w-32 rounded-md" />
-								</div>
-
-								{Array(3)
-									.fill(0)
-									.map((_, index) => (
-										<div key={index} className="p-4 rounded-lg space-y-3">
-											<div className="flex items-center gap-3">
-												<Skeleton className="h-12 w-12 rounded-full" />
-												<div>
-													<Skeleton className="h-6 w-32 mb-2" />
-													<Skeleton className="h-4 w-20" />
-												</div>
-											</div>
-											<div className="flex gap-1">
-												{Array(5)
-													.fill(0)
-													.map((_, starIdx) => (
-														<Skeleton key={starIdx} className="h-4 w-4" />
-													))}
-											</div>
-											<Skeleton className="h-20 w-full" />
-										</div>
-									))}
-							</div>
-						)}
-					</div>
-				</div>
+				{/* (Bottom section removed; merged above) */}
 			</div>
 
 			{/* related products */}

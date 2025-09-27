@@ -7,9 +7,9 @@ import { Card } from "@/components/ui/card";
 
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay } from "swiper/modules";
-import "swiper/css";
-import "swiper/css/pagination";
-import "swiper/css/navigation";
+// import "swiper/css";
+// import "swiper/css/pagination";
+// import "swiper/css/navigation";
 
 import routes from "@/routes";
 import { coreServices, Service } from "@/pages/services/core-services";
@@ -103,7 +103,27 @@ const ServiceCard = ({ serviceItem }: ServiceCardProps) => {
 					</p>
 				</div>
 
-				<Button variant="outline" size="sm" className="w-full">
+				<Button
+					variant="outline"
+					size="sm"
+					className="w-full"
+					onClick={() => {
+						if (serviceItem.cta.toLowerCase().includes("free consultation")) {
+							const el = document.getElementById("contactform");
+							if (el) {
+								// Apply offset (e.g., sticky header height ~70px) to avoid overscrolling
+								const headerOffset = 70; // adjust if header height changes
+								const elementPosition = el.getBoundingClientRect().top + window.scrollY;
+								const offsetPosition = elementPosition - headerOffset;
+
+								window.scrollTo({
+									top: offsetPosition,
+									behavior: "smooth",
+								});
+							}
+						}
+					}}
+				>
 					{serviceItem.cta}
 				</Button>
 			</div>

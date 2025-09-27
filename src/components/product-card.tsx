@@ -78,11 +78,11 @@ const ProductCard = ({
     } else {
         // Default vertical card
         return (
-            // Restored original structure with smaller dimensions
-            <div className="min-w-[220px] bg-slate-100/40 backdrop-blur-lg shadow-sm flex items-center justify-center flex-col">
+            // Compact vertical card
+            <div className="min-w-[190px] bg-slate-100/40 backdrop-blur-lg shadow-sm flex items-center justify-center flex-col">
                 <Link to={`${routes.products.path}/${product.slug}`}>
-                    {/* Compact image container with original rounding */}
-                    <div className="w-[16rem] h-[15rem] overflow-hidden rounded-t-lg hover:*:scale-110">
+                    {/* Smaller image container */}
+                    <div className="w-[14.5rem] h-[13.5rem] overflow-hidden rounded-t-lg hover:*:scale-110">
                         <img
                             src={product.images[0]?.imageUrl || ProductPlaceholderImg}
                             alt={product.name}
@@ -90,8 +90,8 @@ const ProductCard = ({
                         />
                     </div>
                 </Link>
-                {/* Content container with original border style and flexible height */}
-                <div className="w-[16rem] h-full flex flex-col justify-between gap-2 py-3 px-4 border-b border-l border-r rounded-b-lg border-neutral-300">
+                {/* Content container compact spacing */}
+                <div className="w-[14.5rem] h-full flex flex-col justify-between gap-1.5 py-2.5 px-3 border-b border-l border-r rounded-b-lg border-neutral-300">
                     <div>
                         {productCategory && (
                             <Badge size="sm">{productCategory.name}</Badge>
@@ -102,18 +102,18 @@ const ProductCard = ({
                         className="w-full text-left"
                     >
                         {/* Removed 'truncate' to show the full name, allowing it to wrap */}
-                        <h3 className="text-lg font-semibold tracking-wide text-left w-full min-h-[2.25rem]">
+                        <h3 className="text-base font-semibold tracking-wide text-left w-full min-h-[2rem] leading-snug">
                             {product.name}
                         </h3>
                     </Link>
-                    <div className="flex items-center justify-start gap-1">
+                    <div className="flex items-center justify-start gap-1.5">
                         {renderStars(averageRating)}
                         <span className="text-xs pl-1">
                             ({publishedReviews.length})
                         </span>
                     </div>
-                    <div className="w-full flex items-center justify-start gap-3 py-1">
-                        <h4 className="text-2xl font-bold">
+                    <div className="w-full flex items-center justify-start gap-2 py-0.5">
+                        <h4 className="text-xl font-bold">
                             {currencySymbol} {formatPrice(product?.basePrice)}
                         </h4>
                     </div>
@@ -122,7 +122,7 @@ const ProductCard = ({
                         className="w-full flex items-start"
                         to={`${routes.products.path}/${product.slug}`}
                     >
-                        <Button variant="link" className="p-0 h-auto">
+                        <Button variant="link" className="p-0 h-auto text-sm">
                             View Details
                         </Button>
                     </Link>

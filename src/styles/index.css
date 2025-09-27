@@ -268,6 +268,38 @@ p {
   @apply w-3 h-3 bg-skyblue;
 }
 
+/* External pagination for best-selling slider */
+.best-sellers-pagination {
+  /* ensure pagination sits visually below the slides and is centered */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  /* make sure Swiper doesn't absolutely position bullets over slides */
+  position: relative;
+}
+.best-sellers-pagination .swiper-pagination {
+  position: static !important;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  align-items: center;
+}
+.best-sellers-pagination .swiper-pagination-bullet {
+  width: 8px;
+  height: 8px;
+  background: #d1d5db; /* neutral-300 */
+  opacity: 1;
+  border-radius: 9999px;
+  display: inline-block;
+}
+.best-sellers-pagination .swiper-pagination-bullet-active {
+  width: 10px;
+  height: 10px;
+  background: #0ea5e9; /* skyblue */
+}
+
 /* ================ Swiper End ================= */
 
 /* ================ About Timeline Start ================= */

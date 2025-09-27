@@ -134,85 +134,29 @@ class ProductReview {
 		email: string
 	) => {
 		try {
-			// Build request body conservatively. Include guest fields only when customerId is null
-			// to minimize chances of backend validation errors.
+			// BACKEND CONTRACT (2025-09-27):
+			// guestName and guestEmail are REQUIRED for ALL requests (guest or authenticated).
+			// customerId is optional; if provided and resolves, backend overwrites guestName/guestEmail
+			// with authoritative customer record; otherwise treats as guest (customerId null internally).
+			// Therefore: always send guestName / guestEmail.
 			const body: Record<string, any> = {
 				rating,
 				description,
 				productId,
-				customerId,
+				guestName: name,
+				guestEmail: email,
+				// Include customerId only if we have a numeric value; otherwise send null explicitly
+				customerId: customerId ?? null,
 			};
-
-			if (!customerId && name && email) {
-				body.name = name;
-				body.email = email;
-			}
 
 			const headers: Record<string, string> = {};
 			if (token && token.trim() !== "") {
 				headers["Authorization"] = `Bearer ${token}`;
 			}
 
-			const response = await apiClient.post(this.createReviewUrl, body, {
-				headers,
-			});
-
+			const response = await apiClient.post(this.createReviewUrl, body, { headers });
 			return response.data;
 		} catch (err: any) {
-			// For guests, try alternative field names if backend returns 400
-			if (
-				err instanceof AxiosError &&
-				err.response?.status === 400 &&
-				!customerId
-			) {
-				const headers: Record<string, string> = {};
-				if (token && token.trim() !== "") {
-					headers["Authorization"] = `Bearer ${token}`;
-				}
-
-				const base = {
-					rating,
-					description,
-					productId,
-					customerId: null,
-				} as Record<string, unknown>;
-
-				const attempts: Array<Record<string, unknown>> = [];
-				// Attempt 1: minimal (no name/email)
-				attempts.push({ ...base });
-				// Attempt 2: guestName/guestEmail
-				if (name && email)
-					attempts.push({ ...base, guestName: name, guestEmail: email });
-				// Attempt 3: reviewerName/reviewerEmail
-				if (name && email)
-					attempts.push({ ...base, reviewerName: name, reviewerEmail: email });
-				// Attempt 4: customerName/customerEmail
-				if (name && email)
-					attempts.push({ ...base, customerName: name, customerEmail: email });
-
-				for (const payload of attempts) {
-					try {
-						const resp = await apiClient.post(this.createReviewUrl, payload, {
-							headers,
-						});
-						return resp.data;
-					} catch (e: unknown) {
-						if (!(e instanceof AxiosError) || e.response?.status !== 400) {
-							let em = "Failed to submit review.";
-							if (e && typeof e === "object") {
-								const obj = e as Record<string, unknown>;
-								if (obj && typeof obj === "object") {
-									const msg = obj["message"];
-									if (typeof msg === "string") em = msg;
-								}
-							}
-							throw new Error(em);
-						}
-						// else continue trying next payload
-					}
-				}
-			}
-
 			const message =
 				err?.response?.data?.message ||
 				err?.response?.data?.error ||

@@ -55,6 +55,7 @@ export const LoginRegistrationForm = ({
 	showOrderActionButtons = false,
 	onLoginAndOrder,
 	onRegisterAndOrder,
+	onSuccess,
 }: LoginRegistrationFormPropsExtra) => {
 	const { toast } = useToast();
 
@@ -480,9 +481,27 @@ export const LoginRegistrationForm = ({
 						</div>
 					</CardContent>
 					<CardFooter className="flex flex-col items-stretch gap-3">
-						{showOrderActionButtons && (
-							<Button variant="secondary" className="w-full" onClick={handleLoginThenOrder}>
+						{showOrderActionButtons ? (
+							<Button
+								variant="secondary"
+								className="w-full"
+								onClick={handleLoginThenOrder}
+								disabled={loading}
+							>
 								Login & Send Order Request
+							</Button>
+						) : (
+							<Button
+								className="w-full"
+								onClick={async () => {
+									const ok = await loginCore();
+									if (ok) {
+										await Promise.resolve(onSuccess?.());
+									}
+								}}
+								disabled={loading}
+							>
+								Login
 							</Button>
 						)}
 					</CardFooter>
@@ -614,9 +633,27 @@ export const LoginRegistrationForm = ({
 						</div>
 					</CardContent>
 					<CardFooter className="flex flex-col items-stretch gap-3">
-						{showOrderActionButtons && (
-							<Button variant="secondary" className="w-full" onClick={handleRegisterThenOrder}>
+						{showOrderActionButtons ? (
+							<Button
+								variant="secondary"
+								className="w-full"
+								onClick={handleRegisterThenOrder}
+								disabled={loading}
+							>
 								Register & Send Order Request
+							</Button>
+						) : (
+							<Button
+								className="w-full"
+								onClick={async () => {
+									const ok = await registerCore();
+									if (ok) {
+										await Promise.resolve(onSuccess?.());
+									}
+								}}
+								disabled={loading}
+							>
+								Register
 							</Button>
 						)}
 						<p className="text-sm text-center text-gray-700">

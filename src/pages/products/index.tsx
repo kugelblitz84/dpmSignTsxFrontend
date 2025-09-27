@@ -110,7 +110,7 @@ const Products = () => {
 				</div>
 			</section> */}
 
-			<section className="py-10 w-11/12 mx-auto">
+			<section className="py-10 w-11/10 mx-auto">
 				<div className="row flex items-center justify-between xl:justify-end">
 					<div className="xl:hidden">
 						<Sheet>
@@ -173,8 +173,8 @@ const Products = () => {
 				</div>
 
 				{/* Products */}
-				<div className="row py-10 grid xl:grid-cols-6 gap-8">
-					<div className="xl:col-span-1 hidden xl:block">
+				<div className="row py-8 grid xl:grid-cols-7 gap-5 lg:gap-6">
+					<div className="xl:col-span-2 hidden xl:block pr-2 xl:pr-4">
 						{!loading && (
 							<ProductFilter
 								categories={categories}
@@ -221,7 +221,7 @@ const Products = () => {
 					)}
 
 					{!loading && sortedProducts.length > 0 ? (
-						<div className="col-span-5 w-full flex gap-10 flex-wrap flex-row justify-center lg:justify-start">
+						<div className="col-span-5 xl:col-span-5 w-full flex gap-6 md:gap-7 flex-wrap flex-row justify-center lg:justify-start items-stretch">
 							{sortedProducts.map((product, index) => (
 								<ProductCard key={index} product={product} />
 							))}

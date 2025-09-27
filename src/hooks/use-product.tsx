@@ -32,8 +32,10 @@ export interface ProductProps {
 
 export interface ProductReviewProps {
 	reviewId: number;
+	id?: number; // backend may also send a generic id field
 	rating: number;
 	description: string;
+	comment?: string; // some responses include both description & comment
 	status: "published" | "unpublished";
 	productId: number;
 	customerId: number | null;
@@ -44,6 +46,8 @@ export interface ProductReviewProps {
 		name: string;
 		email: string;
 	} | null;
+	guestName?: string | null;
+	guestEmail?: string | null;
 	createdAt: Date;
 	updatedAt: Date;
 }

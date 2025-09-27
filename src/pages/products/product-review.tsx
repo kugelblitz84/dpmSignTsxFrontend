@@ -153,12 +153,12 @@ const ProductReview = ({
 									<Avatar>
 										<AvatarImage src={AvatarImg} />
 										<AvatarFallback>
-											{review.customer?.name || "G"}
+											{review.customer?.name?.[0] || review.guestName?.[0] || "G"}
 										</AvatarFallback>
 									</Avatar>
 									<div className="w-full flex items-start justify-start gap-2 flex-col">
 										<span className="text-base xl:text-lg font-medium xl:font-semibold">
-											{review.customer?.name || "Guest"}
+											{review.customer?.name || review.guestName || "Guest"}
 										</span>
 										<div className="flex text-yellow">
 											{Array.from({ length: 5 }).map((_, index) => (
@@ -174,7 +174,7 @@ const ProductReview = ({
 											))}
 										</div>
 										<p className="text-gray-600 text-sm lg:text-base font-medium">
-											{review.description}
+											{review.description || review.comment}
 										</p>
 									</div>
 								</div>
@@ -215,7 +215,6 @@ const ProductReview = ({
 							name="name"
 							value={reviewFormData.name}
 							onChange={handleChange}
-							readOnly={!!customer?.name} // readonly if logged in user
 							placeholder="Your Name"
 						/>
 					</div>
@@ -234,7 +233,6 @@ const ProductReview = ({
 							name="email"
 							value={reviewFormData.email}
 							onChange={handleChange}
-							readOnly={!!customer?.email} // readonly if logged in user
 							placeholder="Your Email"
 						/>
 					</div>

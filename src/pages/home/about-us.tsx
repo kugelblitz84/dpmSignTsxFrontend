@@ -20,8 +20,8 @@ const AboutUs = () => {
 				// description={sectionHeadingProp.description}
 			/>
 
-			<div className="row py-8 grid grid-cols-1 xl:grid-cols-2 gap-8">
-				<div className="w-full flex items-center xl:items-start justify-center flex-col gap-8">
+			<div className="row py-8 grid grid-cols-1 xl:grid-cols-2 gap-8 xl:gap-1 items-start">
+				<div className="w-full flex items-start justify-start flex-col gap-6">
 					{/* <h4 className="text-4xl font-semibold">
                         This is about headline
                     </h4> */}
@@ -54,17 +54,17 @@ const AboutUs = () => {
 						growing business landscape.
 					</p>
 
-					<Link to={routes.about.path}>
-						<Button variant="outline" size="sm">
+					<Link to={routes.about.path} className="mt-2">
+						<Button variant="outline" size="sm" className="self-start">
 							Learn More
 						</Button>
 					</Link>
 				</div>
-				<div className="w-full flex items-start justify-center">
+				<div className="w-full flex items-center justify-center">
 					<img
 						src={BannerImg}
 						alt="About Us Banner"
-						className="max-w-full xl:max-w-[80%] rounded-md border-2 border-skyblue shadow-lg"
+						className="w-full max-w-[680px] rounded-md border-2 border-skyblue shadow-lg"
 					/>
 				</div>
 			</div>
