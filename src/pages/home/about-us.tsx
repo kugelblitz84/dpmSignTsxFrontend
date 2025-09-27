@@ -20,12 +20,12 @@ const AboutUs = () => {
 				// description={sectionHeadingProp.description}
 			/>
 
-			<div className="row py-8 grid grid-cols-1 xl:grid-cols-2 gap-8 xl:gap-1 items-start">
-				<div className="w-full flex items-start justify-start flex-col gap-6">
+			<div className="row py-8 grid grid-cols-1 xl:grid-cols-2 gap-8 xl:gap-1 items-center">
+				<div className="w-full flex items-center justify-center flex-col gap-6 text-center">
 					{/* <h4 className="text-4xl font-semibold">
                         This is about headline
                     </h4> */}
-					<p className="text-base font-semibold w-[95%] xl:w-[90%] text-justify">
+					<p className="text-base font-semibold w-full max-w-[680px] mx-auto text-center">
 						Dhaka Plastic & Metal started its journey in 2013 as a
 						small shop in the Dhaka University Market, Katabon, with
 						a vision to deliver high-quality signage and branding
@@ -41,7 +41,7 @@ const AboutUs = () => {
 						ideas into impactful visual solutions that boost brand
 						visibility and recognition.
 					</p>
-					<p className="text-base font-semibold w-[95%] xl:w-[90%] text-justify">
+					<p className="text-base font-semibold w-full max-w-[680px] mx-auto text-center">
 						Driven by a passion for quality, precision, and customer
 						satisfaction, we continue to lead the market with
 						tailor-made designs, cutting-edge technology, and
@@ -55,7 +55,7 @@ const AboutUs = () => {
 					</p>
 
 					<Link to={routes.about.path} className="mt-2">
-						<Button variant="outline" size="sm" className="self-start">
+						<Button variant="outline" size="sm" className="self-center">
 							Learn More
 						</Button>
 					</Link>
