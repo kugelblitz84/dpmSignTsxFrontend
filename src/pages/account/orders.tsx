@@ -128,12 +128,35 @@ const Orders = () => {
 									{" " + currencyCode}
 								</TableCell>
 								<TableCell className="underline transition-all duration-300 hover:text-skyblue text-center">
-									<Dialog>
-										<DialogTrigger>
-											<Button variant="link" size="sm">
-												View Order
-											</Button>
-										</DialogTrigger>
+									<div className="flex items-center justify-center gap-2">
+										<Dialog>
+											<DialogTrigger>
+												<Button variant="link" size="sm">
+													View Order
+												</Button>
+											</DialogTrigger>
+
+										{/* Make Payment button: show if there is at least one unpaid payment with a paymentLink. Use the latest by updatedAt. */}
+										{(() => {
+											const latestPaymentLink = order.payments
+												.filter((p) => !p.isPaid && p.paymentLink)
+												.sort(
+													(a, b) =>
+														new Date(b.updatedAt).getTime() -
+														new Date(a.updatedAt).getTime()
+												)[0]?.paymentLink;
+											return latestPaymentLink ? (
+												<a
+													href={latestPaymentLink as any}
+													target="_blank"
+													rel="noopener noreferrer"
+												>
+													<Button size="sm" variant="success">
+														Make Payment
+													</Button>
+												</a>
+											) : null;
+										})()}
 										<DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
 											<DialogHeader className="flex flex-row items-start justify-between mt-4 mb-2">
 												<DialogTitle className="text-2xl font-bold">
@@ -414,6 +437,7 @@ const Orders = () => {
 											</DialogFooter>
 										</DialogContent>
 									</Dialog>
+									</div>
 								</TableCell>
 							</TableRow>
 						))}
@@ -524,9 +548,9 @@ const PaymentSection = ({
 
 									<Link
 										to={
-											order.payments.filter(
-												(payment) => !payment.isPaid && payment.paymentLink
-											)[0].paymentLink as any
+											order.payments
+												.filter((payment) => !payment.isPaid && payment.paymentLink)
+												.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0]?.paymentLink || "#"
 										}
 										target="_blank"
 									>

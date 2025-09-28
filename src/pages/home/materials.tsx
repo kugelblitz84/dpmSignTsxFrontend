@@ -13,9 +13,9 @@ import MaterialImg9 from "@/assets/images/materials/Stainless Steel Sheet.jpg";
 
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Pagination } from "swiper/modules";
-import "swiper/css";
-import "swiper/css/pagination";
-import "swiper/css/navigation";
+// import "swiper/css";
+// import "swiper/css/pagination";
+// import "swiper/css/navigation";
 
 interface Material {
 	title: string;

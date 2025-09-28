@@ -197,34 +197,44 @@ const Products = () => {
 					</div>
 
 					{loading && (
-						<div className="col-span-5 w-full flex gap-10 flex-wrap flex-row justify-center lg:justify-start">
-							{Array.from({ length: 5 }).map((_, index) => (
-								<Card
-									key={index}
-									className="min-w-[250px] overflow-hidden group"
-								>
-									<div className="overflow-hidden">
-										<Skeleton className="w-full aspect-square" />
-									</div>
-									<div className="p-4 space-y-4">
-										<Skeleton className="h-6 w-16 rounded-lg" />
-										<Skeleton className="h-6 w-3/4" />
-										<Skeleton className="h-5 w-1/2" />
-										<div className="flex pt-2 flex-col gap-2">
-											<Skeleton className="h-9 w-30" />
-											<Skeleton className="h-6 w-20" />
+						<div className="col-span-5 w-full">
+							<div
+								className="w-full grid gap-5 justify-items-stretch"
+								style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}
+							>
+								{Array.from({ length: 5 }).map((_, index) => (
+									<Card
+										key={index}
+										className="w-full max-w-[260px] overflow-hidden group"
+									>
+										<div className="overflow-hidden">
+											<Skeleton className="w-full aspect-square" />
 										</div>
-									</div>
-								</Card>
-							))}
+										<div className="p-4 space-y-4">
+											<Skeleton className="h-6 w-16 rounded-lg" />
+											<Skeleton className="h-6 w-3/4" />
+											<Skeleton className="h-5 w-1/2" />
+											<div className="flex pt-2 flex-col gap-2">
+												<Skeleton className="h-9 w-30" />
+												<Skeleton className="h-6 w-20" />
+											</div>
+										</div>
+									</Card>
+								))}
+							</div>
 						</div>
 					)}
 
 					{!loading && sortedProducts.length > 0 ? (
-						<div className="col-span-5 xl:col-span-5 w-full flex gap-6 md:gap-7 flex-wrap flex-row justify-center lg:justify-start items-start">
-							{sortedProducts.map((product, index) => (
-								<ProductCard key={index} product={product} />
-							))}
+						<div className="col-span-5 xl:col-span-5 w-full">
+							<div
+								className="w-full grid gap-6 md:gap-7 justify-items-stretch items-start"
+								style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}
+							>
+								{sortedProducts.map((product, index) => (
+									<ProductCard key={index} product={product} />
+								))}
+							</div>
 						</div>
 					) : (
 						<div className="w-full col-span-5 text-center py-20">
