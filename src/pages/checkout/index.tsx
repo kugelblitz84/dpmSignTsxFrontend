@@ -1242,7 +1242,7 @@ const Checkout = () => {
 
 							<div className="form-group flex flex-col items-start justify-start my-6 gap-2">
 								<div className="">
-									<h3 className="text-base font-medium">Payment Method</h3>
+									   <h3 className="text-base font-medium">Payment in Advance <span className="text-xs font-normal text-gray-500">(25% payment required to confirm order)</span></h3>
 								</div>
 								<div className="flex items-center gap-2 cursor-pointer" onClick={() => setCheckoutFormData(prev => ({...prev, paymentMethod: "online-payment"}))}>
 									<input
@@ -1277,7 +1277,7 @@ const Checkout = () => {
 										htmlFor="cod-payment"
 										className="text-sm font-normal cursor-pointer"
 									>
-										Cash on Delivery
+										Pay Offline
 									</Label>
 								</div>
 
