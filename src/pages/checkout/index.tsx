@@ -218,7 +218,7 @@ const Checkout = () => {
 					if (!Array.isArray(parsed.designFiles)) parsed.designFiles = [];
 					else parsed.designFiles = [];
 					// Ensure a safe default for payment method if missing in saved data
-					if (!parsed.paymentMethod) parsed.paymentMethod = "cod-payment";
+					if (!parsed.paymentMethod) parsed.paymentMethod = "online-payment";
 					return parsed;
 				} catch {
 					// fallthrough
@@ -232,7 +232,7 @@ const Checkout = () => {
 				additionalNotes: "",
 				designFiles: [],
 				deliveryMethod: "",
-				paymentMethod: "cod-payment",
+				paymentMethod: "online-payment",
 				courierId: null,
 				courierAddress: "",
 				staffId: null,
@@ -461,13 +461,9 @@ const Checkout = () => {
 					checkoutFormData.couponId,
 					orderItems,
 					{
-						// Explicitly mark this as an online intent so backend records method: 'online'.
-						// Staff will initiate the payment session later as per guide.
-						method:
-							checkoutFormData.paymentMethod === "online-payment"
-								? "online"
-								: "cod",
-						paymentMethod: checkoutFormData.paymentMethod,
+						// Backend expects online payments for all web orders; force online here.
+						method: "online",
+						paymentMethod: "online-payment",
 					}
 				);
 
@@ -1241,45 +1237,10 @@ const Checkout = () => {
 							<Separator className="my-4 bg-gray/30" />
 
 							<div className="form-group flex flex-col items-start justify-start my-6 gap-2">
-								<div className="">
+								{/* <div className="">
 									   <h3 className="text-base font-medium">Payment in Advance <span className="text-xs font-normal text-gray-500">(25% payment required to confirm order)</span></h3>
-								</div>
-								<div className="flex items-center gap-2 cursor-pointer" onClick={() => setCheckoutFormData(prev => ({...prev, paymentMethod: "online-payment"}))}>
-									<input
-										type="radio"
-										id="online-payment"
-										value="online-payment"
-										name="paymentMethod"
-										className="w-4 h-4"
-										checked={
-											checkoutFormData.paymentMethod === "online-payment"
-										}
-										onChange={handleChange}
-									/>
-									<Label
-										htmlFor="online-payment"
-										className="text-sm font-normal cursor-pointer"
-									>
-										Online Payment (Bkash/Nagad/Bank)
-									</Label>
-								</div>
-								<div className="flex items-center gap-2 cursor-pointer" onClick={() => setCheckoutFormData(prev => ({...prev, paymentMethod: "cod-payment"}))}>
-									<input
-										type="radio"
-										id="cod-payment"
-										value="cod-payment"
-										name="paymentMethod"
-										className="w-4 h-4"
-										checked={checkoutFormData.paymentMethod === "cod-payment"}
-										onChange={handleChange}
-									/>
-									<Label
-										htmlFor="cod-payment"
-										className="text-sm font-normal cursor-pointer"
-									>
-										Pay Offline
-									</Label>
-								</div>
+								</div> */}
+									
 
 								{errors.paymentMethod && (
 									<p className="text-rose-500 font-semibold text-sm">
