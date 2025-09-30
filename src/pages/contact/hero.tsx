@@ -20,11 +20,12 @@ const Hero = () => {
 	};
 
 	return (
-		<section className="py-5">
+		<section className="py-5 bg-heroBanner bg-cover bg-no-repeat bg-center text-white">
 			{/* Section Heading */}
 			<SectionHeading
 				title={sectionHeadingProp.title}
 				description={sectionHeadingProp.description}
+				variant="white"
 			/>
 
 			<div className="row flex items-center justify-center py-2 gap-5">

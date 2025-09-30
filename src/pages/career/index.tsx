@@ -6,12 +6,12 @@ import Contact from "@/pages/career/contact";
 import EmployeeTestimonial from "@/pages/career/employee-testimonial";
 import JobProvider from "@/hooks/use-job";
 import React from "react";
+import Hero from "@/pages/career/hero";
 
 const OurCareer: React.FC = () => {
 	return (
 		<>
-			{/* Hero Section */}
-			{/* <Hero /> */}
+			<Hero />
 
 			{/* Open Positions */}
 			<JobProvider>

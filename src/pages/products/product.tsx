@@ -436,9 +436,22 @@ const Product = () => {
 				)}
 
 				{!loading && (
-					<h3 className="text-2xl xl:text-3xl font-semibold">
-						{product?.name}
-					</h3>
+					<>
+						<h3 className="text-2xl xl:text-3xl font-semibold">
+							{product?.name}
+						</h3>
+
+						{/* Product tags (if any) */}
+						{product?.tags && product.tags.length > 0 && (
+							<div className="mt-3 flex flex-wrap gap-2">
+								{product.tags.map((t) => (
+									<Badge key={t.tagId} className="text-xs py-1 px-2">
+										{t.tag}
+									</Badge>
+								))}
+							</div>
+						)}
+					</>
 				)}
 				{loading && <Skeleton className="h-9 w-2/3 max-w-md mb-4" />}
 

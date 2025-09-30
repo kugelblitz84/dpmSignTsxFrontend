@@ -2,11 +2,12 @@ import Team from "@/pages/about/team";
 import WhoWeAre from "@/pages/about/who-we-are";
 import OurExpertise from "@/pages/about/our-expertise";
 import Testimonial from "@/components/testimonial";
+import Hero from "@/pages/about/hero";
 
 const AboutUs = () => {
 	return (
 		<>
-			{/* <Hero /> */}
+			<Hero />
 			<WhoWeAre />
 			<OurExpertise />
 			<Testimonial />
