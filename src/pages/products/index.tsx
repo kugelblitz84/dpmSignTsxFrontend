@@ -199,7 +199,7 @@ const Products = () => {
 					{loading && (
 						<div className="col-span-5 w-full">
 							<div
-								className="w-full grid gap-5 justify-items-stretch"
+								className="w-full grid gap-5 justify-items-center md:justify-items-stretch"
 								style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}
 							>
 								{Array.from({ length: 5 }).map((_, index) => (
@@ -228,7 +228,7 @@ const Products = () => {
 					{!loading && sortedProducts.length > 0 ? (
 						<div className="col-span-5 xl:col-span-5 w-full">
 							<div
-								className="w-full grid gap-6 md:gap-7 justify-items-stretch items-start"
+								className="w-full grid gap-6 md:gap-7 justify-items-center md:justify-items-stretch items-center md:items-start"
 								style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}
 							>
 								{sortedProducts.map((product, index) => (
