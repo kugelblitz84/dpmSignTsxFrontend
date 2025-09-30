@@ -1,12 +1,14 @@
 import BlogCard from "@/pages/blogs/blog-card";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
-// import ProductCard from "@/components/product-card";
+import ProductCard from "@/components/product-card";
 import { Separator } from "@/components/ui/separator";
 import { useBlog } from "@/hooks/use-blog";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "react-router-dom";
+import { productService } from "@/api";
+// don't import useProduct here; sidebar may render outside ProductProvider
 
 const BlogRightSidebar = () => {
 	const { searchedBlogs, searchLoading, setSearchTerm, error } = useBlog();
@@ -36,6 +38,62 @@ const BlogRightSidebar = () => {
 	useEffect(() => {
 		setSearchInput("");
 	}, [location]);
+
+	const [bestSellingProducts, setBestSellingProducts] = useState<any[]>([]);
+	const [bsLoading, setBsLoading] = useState(false);
+	const [bsError, setBsError] = useState<string | null>(null);
+
+	useEffect(() => {
+		let cancelled = false;
+		const run = async () => {
+			setBsLoading(true);
+			setBsError(null);
+			try {
+				const res = await productService.fetchBestSellingByCategory(2);
+				const arr: unknown = (res as any)?.products ?? res;
+				if (Array.isArray(arr) && arr.length > 0) {
+					if (!cancelled) setBestSellingProducts(arr as any[]);
+					return;
+				}
+				throw new Error("Empty best-selling response");
+			} catch (e: any) {
+				// fallback: try to fetch a small random list to show
+				try {
+					const rnd = await productService.fetchRandomProducts(4);
+					const rndArr: unknown = (rnd as any)?.products ?? rnd;
+					if (Array.isArray(rndArr) && rndArr.length > 0) {
+						if (!cancelled) setBestSellingProducts(rndArr as any[]);
+						if (!cancelled && !(e?.message === "Empty best-selling response")) {
+							setBsError(
+								(e?.message && typeof e.message === "string"
+									? `Live best-selling feed unavailable: ${e.message}. Showing estimated list.`
+									: "Live best-selling feed unavailable. Showing estimated list.")
+							);
+						}
+						return;
+					}
+				} catch {
+					// ignore and continue to set an error below
+				}
+				if (!cancelled) {
+					setBestSellingProducts([]);
+					if (!(e?.message === "Empty best-selling response")) {
+						setBsError(
+							(e?.message && typeof e.message === "string"
+								? `Live best-selling feed unavailable: ${e.message}.`
+								: "Live best-selling feed unavailable.")
+						);
+					}
+				}
+			} finally {
+				if (!cancelled) setBsLoading(false);
+			}
+		};
+		run();
+		return () => {
+			cancelled = true;
+		};
+	}, []);
 
 	return (
 		<>
@@ -78,16 +136,20 @@ const BlogRightSidebar = () => {
 				{/* Best Selling Product */}
 				<div className="space-y-4">
 					<h3 className="font-semibold text-lg">Best Selling Products</h3>
-					{/* {bestSellingProducts.map((product, index) => (
-						<ProductCard
-							key={index}
-							productId={product.id}
-							productImg={product.img}
-							productName={product.title}
-							productCategory={product.category}
-							orientation="horizontal"
-						/>
-					))} */}
+					{bsLoading && <p className="text-sm">Loading best sellers…</p>}
+					{!bsLoading && bsError && (
+						<p className="text-sm text-red-600">{bsError}</p>
+					)}
+					{!bsLoading && bestSellingProducts.length > 0 && (
+						<div className="flex flex-col gap-3">
+							{bestSellingProducts.map((product, index) => (
+								<ProductCard key={index} product={product} orientation="horizontal" />
+							))}
+						</div>
+					)}
+					{!bsLoading && bestSellingProducts.length === 0 && (
+						<p className="text-sm">No best sellers to show.</p>
+					)}
 				</div>
 			</aside>
 		</>

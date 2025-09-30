@@ -390,21 +390,26 @@ const Invoice = () => {
               <table className="w-full table-auto border-collapse text-sm">
                 <thead>
                   <tr className="bg-[#3871C2] text-white">
-                    <th className="border border-blue-700 p-2 text-left w-1/3">Payment Method</th>
-                    <th className="border border-blue-700 p-2 text-right w-1/3">Amount Paid</th>
-                    <th className="border border-blue-700 p-2 text-right w-1/3">Amount Due</th>
+                    <th className="border border-blue-700 p-2 text-left">Payment Method</th>
+                    <th className="border border-blue-700 p-2 text-right">Amount Paid</th>
                   </tr>
                 </thead>
                 <tbody>
                   {currentOrder.payments.filter((p) => p.isPaid).map((payment) => (
                     <tr key={payment.paymentId} className="bg-gray-50">
                       <td className="border border-gray-300 p-2 text-left">{payment.paymentMethod.split("-").join(" ")}</td>
-                      <td className="border border-gray-300 p-2 text-right">{payment.amount.toLocaleString()} {currencyCode}</td>
-                      <td className="border border-gray-300 p-2 text-right">{amountDue.toLocaleString()} {currencyCode}</td>
+                      <td className="border border-gray-300 p-2 text-right">{Number(payment.amount).toLocaleString()} {currencyCode}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+
+              <div className="w-full flex justify-end mt-3">
+                <div className="text-right font-bold">
+                  Amount Due: {amountDue.toLocaleString()} {currencyCode}
+                </div>
+              </div>
+
               <p className="mt-4 font-semibold text-xs italic text-gray-700">NB: Delivery charges are the customer’s responsibility (if applicable).</p>
             </div>
           )}
@@ -425,15 +430,35 @@ const Invoice = () => {
           </div>
 
           <div id="printFooter" className="bg-white text-xs text-black w-full py-3 px-4 border-t border-gray-300">
-            <div className="flex flex-col md:flex-row justify-between items-center gap-2 md:gap-0">
-              <div className="flex items-center gap-1">
-                <span>+8801919960198 <br /> +8801858253961</span>
+            <div className="flex flex-row items-center justify-between w-full max-w-full mx-auto">
+              <div className="flex items-center gap-2 text-left w-1/3">
+                <svg className="w-4 h-4 text-blue-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M3 5a2 2 0 012-2h2.3a1 1 0 01.97.757l.7 2.8a1 1 0 01-.24.92L7.4 9.6a15.05 15.05 0 006 6l1.2-1.6a1 1 0 01.92-.24l2.8.7A1 1 0 0121 16.7V19a2 2 0 01-2 2h-1C8.5 21 3 15.5 3 8V5z" fill="#3871C2"/>
+                </svg>
+                <div className="leading-tight">
+                  <div>+8801919960198</div>
+                  <div>+8801858253961</div>
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <span>info@dpmsign.com</span>
+
+              <div className="flex items-center gap-2 justify-center w-1/3 text-center">
+                <svg className="w-4 h-4 text-blue-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M4 4h16v16H4z" fill="none"/>
+                  <path d="M3 6.5L12 13l9-6.5" stroke="#3871C2" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                  <rect x="3" y="5" width="18" height="14" rx="2" stroke="#3871C2" strokeWidth="0" fill="transparent"/>
+                </svg>
+                <div>info@dpmsign.com</div>
               </div>
-              <div className="flex items-center gap-1 text-center md:text-left flex-wrap">
-                <span>Shop No: 94 & 142, Dhaka University  <br /> Market, Katabon Road, Dhaka-1000</span>
+
+              <div className="flex items-center gap-2 justify-end w-1/3 text-right">
+                <svg className="w-4 h-4 text-blue-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#3871C2"/>
+                  <circle cx="12" cy="9" r="2.3" fill="#fff"/>
+                </svg>
+                <div className="leading-tight">
+                  <div>Shop No: 94 &amp; 142, Dhaka University</div>
+                  <div>Market, Katabon Road, Dhaka-1000</div>
+                </div>
               </div>
             </div>
           </div>

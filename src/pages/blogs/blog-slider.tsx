@@ -10,8 +10,8 @@ import {
 
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination, Autoplay } from "swiper/modules";
-import "swiper/css";
-import "swiper/css/pagination";
+// import "swiper/css";
+// import "swiper/css/pagination";
 import { Link } from "react-router-dom";
 
 import routes from "@/routes";
@@ -46,7 +46,7 @@ const BlogSlider = ({ blogs }: { blogs: BlogProps[] }) => {
 				</Breadcrumb>
 			</div>
 
-			<div className="row py-16">
+			<div className="row py-8">
 				<Swiper
 					modules={[Autoplay, Pagination]}
 					pagination={{ clickable: true }}
@@ -66,7 +66,7 @@ const BlogSlider = ({ blogs }: { blogs: BlogProps[] }) => {
 				>
 					{blogs.slice(0, 3).map((blog, index) => (
 						<SwiperSlide key={index}>
-							<div className="w-[80%] mx-auto flex items-center justify-center mb-20">
+							<div className="w-[80%] mx-auto flex items-center justify-center mb-6">
 								<BlogCard blog={blog} isLoading={loading} />
 							</div>
 						</SwiperSlide>

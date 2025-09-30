@@ -61,6 +61,7 @@ const ProductFilter = ({
 				setCheckedCategories={setCheckedCategories}
 				onSelectCategory={handleSelectCategory}
 				selectedCategoryId={selectedCategory?.categoryId}
+				setSelectedCategories={setSelectedCategories}
 			/>
 
 			{selectedCategories && selectedCategories.length > 0 && (
@@ -96,6 +97,7 @@ const ProductFilter = ({
 
 interface CategoryTreeItem extends CategoryProps {
 	children: CategoryTreeItem[];
+	productCount: number;
 }
 
 const NestedCategoryAccordion = ({
@@ -104,12 +106,14 @@ const NestedCategoryAccordion = ({
 	setCheckedCategories,
 	onSelectCategory,
 	selectedCategoryId,
+	setSelectedCategories,
 }: {
 	categories: CategoryProps[];
 	checkedCategories: number[];
 	setCheckedCategories: React.Dispatch<SetStateAction<number[]>>;
 	onSelectCategory?: (category: CategoryProps) => void;
 	selectedCategoryId?: number | null;
+	setSelectedCategories?: React.Dispatch<SetStateAction<CategoryProps[]>>;
 }) => {
 	const [categoryTree, setCategoryTree] = useState<CategoryTreeItem[]>([]);
 	const [expandedItems, setExpandedItems] = useState<string[]>([]);
@@ -124,13 +128,25 @@ const NestedCategoryAccordion = ({
 			);
 
 			const buildTree = (category: CategoryProps): CategoryTreeItem => {
-				const children = categories.filter(
+				const directChildren = categories.filter(
 					(c) => c.parentCategoryId === category.categoryId
+				);
+
+				const childItems = directChildren.map(buildTree);
+
+				const ownProducts = Array.isArray(category.products)
+					? category.products.length
+					: 0;
+
+				const childProducts = childItems.reduce(
+					(sum, ch) => sum + (ch.productCount || 0),
+					0
 				);
 
 				return {
 					...category,
-					children: children.map(buildTree),
+					children: childItems,
+					productCount: ownProducts + childProducts,
 				};
 			};
 
@@ -172,40 +188,80 @@ const NestedCategoryAccordion = ({
 		setExpandedItems(value);
 	};
 
-	const handleCheckboxChange = (categoryId: number, checked: boolean) => {
-		setCheckedCategories((prev) => {
-			const selectedCategory = categories.find(
-				(c) => categoryId === c.categoryId
-			);
+	// Helper: find node in categoryTree by id
+	const getNodeById = (
+		tree: CategoryTreeItem[],
+		id: number
+	): CategoryTreeItem | null => {
+		for (const node of tree) {
+			if (node.categoryId === id) return node;
+			if (node.children.length) {
+				const found = getNodeById(node.children, id);
+				if (found) return found;
+			}
+		}
+		return null;
+	};
 
+	const collectDescendantNodes = (node: CategoryTreeItem): CategoryTreeItem[] => {
+		const result: CategoryTreeItem[] = [node];
+		for (const ch of node.children) {
+			result.push(...collectDescendantNodes(ch));
+		}
+		return result;
+	};
+
+	const handleCheckboxChange = (categoryId: number, checked: boolean) => {
+		// find the node in the built categoryTree (so we can include nested children)
+		const node = getNodeById(categoryTree, categoryId);
+
+		// gather descendant ids (including the node itself)
+		const descendantIds = node ? collectDescendantNodes(node).map((n) => n.categoryId) : [categoryId];
+
+		setCheckedCategories((prev) => {
 			if (checked) {
-				// Add this category and its subcategories to checked
-				if (
-					selectedCategory?.subCategories &&
-					!prev.includes(categoryId)
-				) {
-					return [
-						...prev,
-						categoryId,
-						...selectedCategory.subCategories.map((sc) => sc.categoryId),
-					];
-				}
-				return [...prev, categoryId];
+				// add all descendant ids (avoid duplicates)
+				const set = new Set(prev);
+				descendantIds.forEach((id) => set.add(id));
+				return Array.from(set);
 			} else {
-				const subCategoryIds =
-					selectedCategory?.subCategories.map((sc) => sc.categoryId) || [];
-				return prev
-					.filter((id) => id !== categoryId)
-					.filter((id) => !subCategoryIds.includes(id));
+				// remove all descendant ids
+				return prev.filter((id) => !descendantIds.includes(id));
 			}
 		});
 
-		// Notify parent about selection
-		const selectedCategory = categories.find(
-			(c) => c.categoryId === categoryId
-		);
-		if (selectedCategory) {
-			onSelectCategory?.(selectedCategory);
+		// Update selectedCategories (if parent provided) to include or remove all descendant category objects
+		if (setSelectedCategories) {
+			if (node) {
+				const descendantNodes = collectDescendantNodes(node);
+				if (checked) {
+					setSelectedCategories((prev) => {
+						const map = new Map(prev.map((p) => [p.categoryId, p]));
+						for (const dn of descendantNodes) {
+							map.set(dn.categoryId, dn);
+						}
+						return Array.from(map.values());
+					});
+				} else {
+					setSelectedCategories((prev) =>
+						prev.filter((p) => !descendantIds.includes(p.categoryId))
+					);
+				}
+			} else {
+				// fallback: if node not found, add/remove the single category
+				if (checked) {
+					const cat = categories.find((c) => c.categoryId === categoryId);
+					if (cat) setSelectedCategories((prev) => (prev.some((p) => p.categoryId === cat.categoryId) ? prev : [...prev, cat]));
+				} else {
+					setSelectedCategories((prev) => prev.filter((p) => p.categoryId !== categoryId));
+				}
+			}
+		} else {
+			// If parent provided an onSelectCategory callback but not the setter, call it for the single category
+			const selectedCategory = categories.find((c) => c.categoryId === categoryId);
+			if (selectedCategory) {
+				onSelectCategory?.(selectedCategory);
+			}
 		}
 	};
 
@@ -255,6 +311,9 @@ const NestedCategoryAccordion = ({
 						)}
 					>
 						{category.name}
+						{typeof (category as any).productCount === "number" && (category as any).productCount > 0 && (
+							<span className="text-xs font-normal text-neutral-400 ml-1">({(category as any).productCount})</span>
+						)}
 					</Label>
 				</div>
 			);
@@ -297,8 +356,8 @@ const NestedCategoryAccordion = ({
 							/>
 							<span className="whitespace-normal break-words leading-snug text-[12px] font-semibold text-slate-700 flex-grow text-left">
 								{category.name}
-								{category.products && (
-									<span className="text-xs font-normal text-neutral-400 ml-1">({category.products.length})</span>
+								{typeof (category as any).productCount === "number" && (category as any).productCount > 0 && (
+									<span className="text-xs font-normal text-neutral-400 ml-1">({(category as any).productCount})</span>
 								)}
 							</span>
 						</div>
@@ -330,6 +389,9 @@ const NestedCategoryAccordion = ({
 									/>
 									<span className="whitespace-normal break-words leading-snug text-[12px] flex-grow">
 										{child.name}
+										{typeof (child as any).productCount === "number" && (child as any).productCount > 0 && (
+											<span className="text-xs font-normal text-neutral-400 ml-1">({(child as any).productCount})</span>
+										)}
 									</span>
 								</div>
 							) : (
