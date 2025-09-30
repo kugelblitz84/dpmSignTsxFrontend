@@ -45,7 +45,7 @@ const Team = () => {
 			memberImg: TeamMember3,
 			memberName: "Robiul Chokder",
 			memberRole: "Head of Marketing",
-			memberEmail: "robiul@dpmsign.com",
+			memberEmail: "robiul.c@dpmsign.com",
 		},
 	];
 

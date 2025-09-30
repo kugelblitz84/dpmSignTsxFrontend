@@ -20,16 +20,16 @@ const BlogCard = ({
 	isLoading: boolean;
 }) => {
 	return (
-		<Card className="xl:w-full w-[90%] mx-auto overflow-hidden bg-slate-100/40 backdrop-blur-lg shadow-sm border-gray/50 flex items-start justify-start flex-col gap-2">
+		<Card className="w-full max-w-sm md:max-w-md lg:max-w-lg mx-auto overflow-hidden bg-slate-100/40 backdrop-blur-lg shadow-sm border-gray/50 flex items-start justify-start flex-col gap-2">
 			{isLoading || !blog ? (
-				<Skeleton className="w-[40rem] h-[16rem] xl:h-[24rem]" />
+				<Skeleton className="w-full h-40 md:h-56 xl:h-72" />
 			) : (
 				blog?.bannerImgUrl && (
 					<Link to={`${routes.blogs.path}/${blog.blogId}`}>
 						<img
 							src={blog.bannerImgUrl}
 							alt={blog.title}
-							className="w-[40rem] h-[16rem] xl:h-[24rem] object-cover object-center"
+							className="w-full h-40 md:h-56 xl:h-72 object-cover object-center"
 						/>
 					</Link>
 				)

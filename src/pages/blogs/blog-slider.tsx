@@ -24,7 +24,7 @@ const BlogSlider = ({ blogs }: { blogs: BlogProps[] }) => {
 		<section className="py-2">
 			<SectionHeading title={"Featured Blog"} />
 
-			<div className="row flex items-center justify-center py-0 gap-5">
+			<div className="row flex items-center justify-center py-2 gap-5">
 				<Breadcrumb>
 					<BreadcrumbList>
 						<BreadcrumbItem>
@@ -46,12 +46,12 @@ const BlogSlider = ({ blogs }: { blogs: BlogProps[] }) => {
 				</Breadcrumb>
 			</div>
 
-			<div className="row py-8">
+			<div className="row py-4 pb-0">
 				<Swiper
 					modules={[Autoplay, Pagination]}
 					pagination={{ clickable: true }}
 					autoplay={{ delay: 1500 }}
-					className="w-full"
+					className="w-full pb-11"
 					breakpoints={{
 						0: {
 							slidesPerView: 1,
@@ -66,7 +66,7 @@ const BlogSlider = ({ blogs }: { blogs: BlogProps[] }) => {
 				>
 					{blogs.slice(0, 3).map((blog, index) => (
 						<SwiperSlide key={index}>
-							<div className="w-[80%] mx-auto flex items-center justify-center mb-6">
+							<div className="w-full mx-auto flex items-center justify-center mb-0">
 								<BlogCard blog={blog} isLoading={loading} />
 							</div>
 						</SwiperSlide>
