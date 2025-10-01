@@ -1,7 +1,7 @@
 import SectionHeading, {
 	SectionHeadingProps,
 } from "@/components/section-heading";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -73,6 +73,7 @@ const Services = () => {
 
 const ServiceCard = ({ serviceItem }: ServiceCardProps) => {
 	const IconComponent = serviceItem.icon;
+	const navigate = useNavigate();
 
 	return (
 		<Card className="shadow-lg w-full h-full flex items-start justify-start flex-col gap-5 overflow-hidden">
@@ -115,12 +116,15 @@ const ServiceCard = ({ serviceItem }: ServiceCardProps) => {
 								const headerOffset = 70; // adjust if header height changes
 								const elementPosition = el.getBoundingClientRect().top + window.scrollY;
 								const offsetPosition = elementPosition - headerOffset;
-
+							
 								window.scrollTo({
 									top: offsetPosition,
 									behavior: "smooth",
 								});
 							}
+						} else {
+							// Default action: navigate to products page
+							navigate(routes.products.path);
 						}
 					}}
 				>
