@@ -266,7 +266,7 @@ const Product = () => {
 
 		setProduct(foundProduct); // Set the product state
 		setExcludeProductId(foundProduct.productId); // Exclude the product from random products
-		setActiveProductImage(foundProduct?.images[0]);
+	setActiveProductImage(foundProduct?.images?.[0] ?? null);
 		setDesignCharge(
 			foundProduct?.basePrice && foundProduct?.basePrice < 1000 ? 250 : 0
 		);

@@ -1,13 +1,19 @@
 import BlogCard from "@/pages/blogs/blog-card";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
-import ProductCard from "@/components/product-card";
+// Render a lightweight horizontal product preview here to avoid depending on ProductCard which requires CategoryProvider
+import { Link } from "react-router-dom";
+import routes from "@/routes";
+import ProductPlaceholderImg from "@/assets/images/product-placeholder.jpg";
+import { formatPrice } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { useBlog } from "@/hooks/use-blog";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "react-router-dom";
 import { productService } from "@/api";
+import urlJoin from "url-join";
+import { apiStaticURL } from "@/lib/dotenv";
 // don't import useProduct here; sidebar may render outside ProductProvider
 
 const BlogRightSidebar = () => {
@@ -52,7 +58,28 @@ const BlogRightSidebar = () => {
 				const res = await productService.fetchBestSellingByCategory(2);
 				const arr: unknown = (res as any)?.products ?? res;
 				if (Array.isArray(arr) && arr.length > 0) {
-					if (!cancelled) setBestSellingProducts(arr as any[]);
+					// Try to replace each feed item with canonical product data from product endpoint
+					const canonical = await Promise.all((arr as any[]).map(async (item) => {
+						const pid = (item as any).productId ?? (item as any).product?.productId ?? null;
+						if (!pid) return item;
+						try {
+							const prodResp = await productService.fetchProductById(pid);
+							const prod = prodResp?.data?.product || prodResp?.product || prodResp;
+							// normalize images to imageUrl if needed
+							if (Array.isArray(prod?.images)) {
+								prod.images = prod.images.map((img: any) => ({
+									...img,
+									imageUrl:
+										img?.imageUrl ||
+										(img?.imageName ? urlJoin(apiStaticURL, "/product-images", img.imageName) : undefined),
+								}));
+							}
+							return prod;
+						} catch {
+							return item;
+						}
+					}));
+					if (!cancelled) setBestSellingProducts(canonical as any[]);
 					return;
 				}
 				throw new Error("Empty best-selling response");
@@ -142,8 +169,17 @@ const BlogRightSidebar = () => {
 					)}
 					{!bsLoading && bestSellingProducts.length > 0 && (
 						<div className="flex flex-col gap-3">
-							{bestSellingProducts.map((product, index) => (
-								<ProductCard key={index} product={product} orientation="horizontal" />
+							{bestSellingProducts.map((product: any, index) => (
+								<div key={index} className="w-full bg-slate-50 rounded-md border p-2 flex items-center gap-3">
+									<img src={product?.images?.[0]?.imageUrl || ProductPlaceholderImg} alt={product?.name || 'Product'} className="w-20 h-20 object-cover rounded-md" />
+									<div className="flex-1">
+										<Link to={`${routes.products.path}/${product?.slug || ''}`} className="font-semibold block text-sm">
+											{product?.name || 'Product'}
+										</Link>
+										<div className="text-xs text-gray-600">{product?.reviews?.length ?? 0} reviews</div>
+										<div className="text-sm font-bold mt-1">{formatPrice(product?.basePrice || 0)}</div>
+									</div>
+								</div>
 							))}
 						</div>
 					)}

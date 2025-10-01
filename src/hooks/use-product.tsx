@@ -190,6 +190,8 @@ const ProductProvider = ({ children }: { children: React.ReactNode }) => {
 								image.imageName
 							),
 						})) || [],
+	                    // Ensure reviews is always an array to avoid runtime errors when components call .filter/.length
+	                    reviews: item.reviews || [],
 				}))
 				.filter((product: ProductProps) => product.isActive === true);
 
@@ -241,6 +243,8 @@ const ProductProvider = ({ children }: { children: React.ReactNode }) => {
 								image.imageName
 							),
 						})) || [],
+	                    // Ensure reviews is always an array to avoid runtime errors when components call .filter/.length
+	                    reviews: item.reviews || [],
 				}))
 				.filter((product: ProductProps) => product.isActive === true);
 

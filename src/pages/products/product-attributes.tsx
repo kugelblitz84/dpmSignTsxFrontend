@@ -11,7 +11,7 @@ import { ProductProps } from "@/hooks/use-product";
 const ProductAttributes = ({ product }: { product: ProductProps }) => {
 	return (
 		<div className="">
-			<h3 className="text-lg lg:text-xl font-semibold">Key attributes</h3>
+			<h3 className="text-lg lg:text-xl font-semibold">Product Description</h3>
 
 			{product.attributes.length > 0 && (
 				<div className="w-full  ">

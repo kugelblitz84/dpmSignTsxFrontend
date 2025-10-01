@@ -27,7 +27,7 @@ const ProductCard = ({
     );
 
     const publishedReviews = useMemo(() =>
-        product.reviews.filter((review) => review.status === "published"),
+        (product.reviews || []).filter((review) => review.status === "published"),
         [product.reviews]
     );
 
@@ -41,9 +41,9 @@ const ProductCard = ({
             <div className="w-full bg-slate-100/40 backdrop-blur-lg shadow-sm border-neutral-300 grid grid-cols-3 gap-3 border rounded-lg overflow-hidden">
                 <Link to={`${routes.products.path}/${product.slug}`}>
                     <img
-                        src={product.images[0]?.imageUrl || ProductPlaceholderImg}
+                        src={product.images?.[0]?.imageUrl || ProductPlaceholderImg}
                         alt={product.name}
-                        className="object-cover w-full h-full rounded-l-lg group-hover:scale-105 transition-transform duration-300 ease-in-out"
+                        className="object-center object-cover w-full h-full rounded-l-lg group-hover:scale-105 transition-transform duration-300 ease-in-out"
                     />
                 </Link>
                 <div className="col-span-2 w-full h-auto flex items-start justify-center flex-col gap-1.5 py-2 pr-3">
@@ -84,9 +84,9 @@ const ProductCard = ({
                     {/* Smaller image container */}
                     <div className="w-full h-[13.5rem] overflow-hidden rounded-t-lg hover:scale-105">
                         <img
-                            src={product.images[0]?.imageUrl || ProductPlaceholderImg}
+                            src={product.images?.[0]?.imageUrl || ProductPlaceholderImg}
                             alt={product.name}
-                            className="w-full h-full object-cover transition-all duration-300"
+                            className="w-full h-full object-center object-cover transition-all duration-300"
                         />
                     </div>
                 </Link>
@@ -133,10 +133,11 @@ const ProductCard = ({
 };
 
 // This function is now more efficient as it receives pre-filtered reviews
-const getAverageRating = (publishedReviews: ProductReviewProps[]) => {
-    if (!publishedReviews.length) return 0;
-    const totalRating = publishedReviews.reduce((acc, review) => acc + review.rating, 0);
-    return totalRating / publishedReviews.length;
+const getAverageRating = (publishedReviews?: ProductReviewProps[]) => {
+    const reviews = publishedReviews || [];
+    if (!reviews.length) return 0;
+    const totalRating = reviews.reduce((acc, review) => acc + (review.rating || 0), 0);
+    return totalRating / reviews.length;
 };
 
 // Reduced star size for a more compact look

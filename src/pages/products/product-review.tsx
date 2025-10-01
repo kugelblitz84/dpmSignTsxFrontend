@@ -24,10 +24,10 @@ interface ReviewFormProps {
 
 const ProductReview = ({
 	productId,
-	reviews,
+	reviews = [],
 }: {
 	productId: number;
-	reviews: ProductReviewProps[];
+	reviews?: ProductReviewProps[] | undefined;
 }) => {
 	const [loading, setLoading] = useDisclosure();
 	const { toast } = useToast();
