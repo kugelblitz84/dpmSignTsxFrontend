@@ -8,8 +8,18 @@ interface Section {
 const ReturnPolicy = () => {
 	const sectionHeadingProp = {
 		title: "Return & Refund Policy",
-		description:
-			"Dhaka Plastic & Metal, we value every customer relationship and strive to deliver customized signage, award crests, and promotional or corporate gift items that exceed expectations. Since all our products are made-to-order, we follow a specific Return & Refund Policy to ensure clarity, fairness, and your peace of mind. This policy outlines the circumstances under which returns and refunds are processed, and how they are linked to our Exchange Policy.",
+		description: (
+			<span>
+				Dhaka Plastic & Metal, we value every customer relationship and strive to deliver customized signage, award crests, and promotional or corporate gift items that exceed expectations. Since all our products are made-to-order, we follow a specific Return & Refund Policy to ensure clarity, fairness, and your peace of mind. This policy outlines the circumstances under which returns and refunds are processed, and how they are linked to our {" "}
+				<a
+					href="/exchange-policy"
+					className="text-skyblue hover:underline font-semibold focus:outline-none focus:ring-2 focus:ring-skyblue/60 rounded-sm"
+				>
+					Exchange Policy
+				</a>
+				.
+			</span>
+		),
 	};
 
 	const sections: Section[] = [

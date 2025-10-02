@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 // Define the type for the section heading props
 export interface SectionHeadingProps {
 	title: string;
-	description?: string;
+	description?: React.ReactNode; // allow rich content like links
 	variant?: "black" | "white";
 }
 
@@ -19,16 +19,18 @@ const SectionHeading = ({
 					<h2 className="w-full text-center text-3xl lg:text-4xl font-semibold relative py-5 after:content-[''] after:absolute after:w-20 after:h-[0.3rem] after:rounded-full after:bg-skyblue after:left-[50%] after:-translate-x-1/2 after:-bottom-1 after:transition-all after:duration-300">
 						{title}
 					</h2>
-					<p
-						className={cn(
-							"text-base lg:text-lg font-semibold lg:w-[65%]",
-							description && description.toString().length > 150
-								? "text-justify"
+					{description && (
+						<p
+							className={cn(
+								"text-base lg:text-lg font-semibold lg:w-[65%]",
+								typeof description === 'string' && description.toString().length > 150
+									? "text-justify"
 								: "text-center"
-						)}
-					>
-						{description}
-					</p>
+							)}
+						>
+							{description}
+						</p>
+					)}
 				</div>
 			)}
 			{variant === "white" && (
@@ -36,16 +38,18 @@ const SectionHeading = ({
 					<h2 className="w-full text-center text-3xl lg:text-4xl font-semibold relative py-5 after:bg-white after:content-[''] after:absolute after:w-20 after:h-[0.3rem] after:rounded-full after:left-[50%] after:-translate-x-1/2 after:-bottom-1 after:transition-all after:duration-300">
 						{title}
 					</h2>
-					<p
-						className={cn(
-							"text-base lg:text-lg font-semibold lg:w-[65%]",
-							description && description.toString().length > 150
-								? "text-justify"
+					{description && (
+						<p
+							className={cn(
+								"text-base lg:text-lg font-semibold lg:w-[65%]",
+								typeof description === 'string' && description.toString().length > 150
+									? "text-justify"
 								: "text-center"
-						)}
-					>
-						{description}
-					</p>
+							)}
+						>
+							{description}
+						</p>
+					)}
 				</div>
 			)}
 		</>

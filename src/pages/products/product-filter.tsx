@@ -65,7 +65,7 @@ const ProductFilter = ({
 			/>
 
 			{selectedCategories && selectedCategories.length > 0 && (
-				<div className="mt-4 pt-4 border-t border-gray-100">
+				<div className="mt-4 pt-4">
 					<h3 className="text-sm font-medium text-gray-500 mb-2">
 						Selected Categories:
 					</h3>
@@ -290,7 +290,7 @@ const NestedCategoryAccordion = ({
 				<div
 					key={category.categoryId}
 					className={cn(
-						"flex items-start gap-2 px-3 py-2 rounded border border-slate-200 bg-slate-50 hover:bg-slate-100 w-full min-h-[40px] text-[12px] leading-tight",
+						"flex items-start gap-2 px-3 py-2 rounded bg-slate-50 hover:bg-slate-100 w-full min-h-[40px] text-[12px] leading-tight",
 						isSelected && "ring-1 ring-skyblue/50 bg-slate-100"
 					)}
 					title={category.name}
@@ -335,7 +335,7 @@ const NestedCategoryAccordion = ({
 					>
 						<div
 							className={cn(
-								"flex items-start gap-2 px-3 py-2 rounded border border-slate-300 bg-white group-data-[state=open]:bg-slate-50 w-full min-h-[42px] text-[12px] leading-tight shadow-sm transition-colors",
+								"flex items-start gap-2 px-3 py-2 rounded bg-white group-data-[state=open]:bg-slate-50 w-full min-h-[42px] text-[12px] leading-tight shadow-sm transition-colors",
 								checkedCategories.includes(category.categoryId) &&
 									"ring-1 ring-skyblue/50 bg-slate-50"
 							)}
@@ -369,16 +369,14 @@ const NestedCategoryAccordion = ({
 							const baseIndentLevels = ["ml-3", "ml-6", "ml-9", "ml-12", "ml-14"]; // progressive indent
 							const childIndent = baseIndentLevels[Math.min(level, baseIndentLevels.length - 1)];
 							return child.children.length === 0 ? (
-								<div
-									key={child.categoryId}
-									className={cn(
-										"relative flex items-start gap-2 px-3 py-2 rounded border border-slate-200 bg-slate-50 hover:bg-slate-100 text-[12px] leading-tight w-full min-h-[40px]",
-										childIndent
-									)}
-									title={child.name}
-								>
-									{/* vertical guide line */}
-									<span className="pointer-events-none absolute left-1 top-0 bottom-0 border-l border-slate-200" />
+									<div
+										key={child.categoryId}
+										className={cn(
+											"relative flex items-start gap-2 px-3 py-2 rounded bg-slate-50 hover:bg-slate-100 text-[12px] leading-tight w-full min-h-[40px]",
+											childIndent
+										)}
+										title={child.name}
+									>
 									<Checkbox
 										id={`category-${child.categoryId}`}
 										checked={checkedCategories.includes(child.categoryId)}

@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/card";
 // Swiper removed for thumbnails (using custom scroll implementation)
 import ProductCard from "@/components/product-card";
-import { Minus, Plus } from "lucide-react";
+import { Minus, Plus, Tag as TagIcon } from "lucide-react";
 // import { useIsMobile } from "@/hooks/use-mobile"; // no longer needed for thumbnails
 import routes from "@/routes";
 import {
@@ -386,7 +386,7 @@ const Product = () => {
 	};
 
 	return (
-		<section className="py-8 xl:py-16 w-11/12 mx-auto">
+		<section className="py-8 xl:py-8 w-11/12 mx-auto">
 			{/* header */}
 			<div className="row pb-5">
 				{!loading && (
@@ -441,31 +441,33 @@ const Product = () => {
 							{product?.name}
 						</h3>
 
-						{/* Product tags (if any) */}
-						{product?.tags && product.tags.length > 0 && (
-							<div className="mt-3 flex flex-wrap gap-2">
-								{product.tags.map((t) => (
-									<Badge key={t.tagId} className="text-xs py-1 px-2">
-										{t.tag}
-									</Badge>
-								))}
-							</div>
-						)}
+
 					</>
 				)}
 				{loading && <Skeleton className="h-9 w-2/3 max-w-md mb-4" />}
 
 				<div className="w-full pt-2 flex items-start flex-wrap gap-4">
-					<div className="py-2 flex items-start xl:items-center justify-center gap-2 flex-col xl:flex-row flex-wrap xl:flex-nowrap">
+					<div className="py-2 flex items-start xl:items-center justify-start gap-4 flex-col xl:flex-row flex-wrap">
 						{!loading && product && (
-							<>
-								<h5 className="min-w-fit text-base xl:text-lg font-medium">
-									Product SKU:
-								</h5>
-								<div className="w-full flex items-start justify-start gap-2 flex-wrap">
+							<div className="flex flex-col xl:flex-row gap-3 w-full">
+								<div className="flex items-center gap-2 flex-wrap">
+									<h5 className="min-w-fit text-base xl:text-lg font-medium">Product SKU:</h5>
 									<Badge>{product?.sku}</Badge>
 								</div>
-							</>
+								{product?.tags && product.tags.length > 0 && (
+									<div className="flex items-center gap-2 flex-wrap">
+										<span className="flex items-center gap-1 text-sm xl:text-base font-medium text-gray-700">
+											<TagIcon className="w-4 h-4 text-skyblue" />
+											<span>Tags:</span>
+										</span>
+										{product.tags.map((t) => (
+											<Badge key={t.tagId} variant="secondary" className="text-xs py-1 px-2">
+												{t.tag}
+											</Badge>
+										))}
+									</div>
+								)}
+							</div>
 						)}
 
 						{loading && (
@@ -595,75 +597,7 @@ const Product = () => {
 							</div>
 						</>
 					)}
-				{/* Attributes & Reviews now directly follow images to eliminate vertical gap */}
-				<div className="w-full md:col-span-5 mt-6">
-					{/* Product Attributes */}
-					{!loading && product && <ProductAttributes product={product} />}
-					{loading &&
-						Array(5)
-							.fill(0)
-							.map((_, index) => (
-								<div key={index} className="mb-4">
-									<Skeleton className="h-7 w-40 mb-3" />
-									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-										{Array(4)
-											.fill(0)
-											.map((_, attrIndex) => (
-												<div
-													key={attrIndex}
-													className="flex items-center gap-2"
-												>
-													<Skeleton className="h-5 w-32" />
-													<Skeleton className="h-5 w-20" />
-												</div>
-											))}
-									</div>
-								</div>
-							))}
-
-					{/* Reviews */}
-					<div className="w-full py-5 mt-5 h-auto">
-						{!loading && product && product.reviews && (
-							<>
-								<Separator orientation="horizontal" className="bg-gray/30" />
-								<ProductReview
-									productId={product.productId}
-									reviews={product?.reviews}
-								/>
-							</>
-						)}
-						{loading && (
-							<div className="py-6 space-y-6">
-								<div className="flex justify-between items-center">
-									<Skeleton className="h-8 w-40" />
-									<Skeleton className="h-10 w-32 rounded-md" />
-								</div>
-
-								{Array(3)
-									.fill(0)
-									.map((_, index) => (
-										<div key={index} className="p-4 rounded-lg space-y-3">
-											<div className="flex items-center gap-3">
-												<Skeleton className="h-12 w-12 rounded-full" />
-												<div>
-													<Skeleton className="h-6 w-32 mb-2" />
-													<Skeleton className="h-4 w-20" />
-												</div>
-											</div>
-											<div className="flex gap-1">
-												{Array(5)
-													.fill(0)
-													.map((_, starIdx) => (
-														<Skeleton key={starIdx} className="h-4 w-4" />
-													))}
-											</div>
-											<Skeleton className="h-20 w-full" />
-										</div>
-									))}
-							</div>
-						)}
-					</div>
-				</div>
+				{/* (Product description moved below order details as requested) */}
 			</div>
 
 			{/* Right Column: Product Price Card (col-span-1 on xl) */}
@@ -1120,6 +1054,77 @@ const Product = () => {
 				</div>
 
 				{/* (Bottom section removed; merged above) */}
+			</div>
+
+			{/* Product Description (moved here under order details) */}
+			<div className="row w-full py-8 mt-4">
+				{!loading && product && <ProductAttributes product={product} />}
+				{loading && (
+					<div className="w-full">
+						{Array(5)
+							.fill(0)
+							.map((_, index) => (
+								<div key={index} className="mb-4">
+									<Skeleton className="h-7 w-40 mb-3" />
+									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+										{Array(4)
+											.fill(0)
+											.map((_, attrIndex) => (
+												<div
+													key={attrIndex}
+													className="flex items-center gap-2"
+												>
+													<Skeleton className="h-5 w-32" />
+													<Skeleton className="h-5 w-20" />
+												</div>
+											))}
+									</div>
+								</div>
+						))}
+					</div>
+				)}
+			</div>
+
+			{/* Reviews moved here (before related products) for mobile-first ordering */}
+			<div className="row w-full py-5 mt-2 h-auto">
+				{!loading && product && product.reviews && (
+					<>
+						<Separator orientation="horizontal" className="bg-gray/30" />
+						<ProductReview
+							productId={product.productId}
+							reviews={product?.reviews}
+						/>
+					</>
+				)}
+				{loading && (
+					<div className="py-6 space-y-6">
+						<div className="flex justify-between items-center">
+							<Skeleton className="h-8 w-40" />
+							<Skeleton className="h-10 w-32 rounded-md" />
+						</div>
+						{Array(3)
+							.fill(0)
+							.map((_, index) => (
+								<div key={index} className="p-4 rounded-lg space-y-3">
+									<div className="flex items-center gap-3">
+										<Skeleton className="h-12 w-12 rounded-full" />
+										<div>
+											<Skeleton className="h-6 w-32 mb-2" />
+											<Skeleton className="h-4 w-20" />
+										</div>
+									</div>
+									<div className="flex gap-1">
+										{Array(5)
+											.fill(0)
+											.map((_, starIdx) => (
+												<Skeleton key={starIdx} className="h-4 w-4" />
+											))}
+									</div>
+									<Skeleton className="h-20 w-full" />
+								</div>
+							))}
+					</div>
+				)}
 			</div>
 
 			{/* related products */}

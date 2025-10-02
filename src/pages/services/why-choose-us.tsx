@@ -1,5 +1,4 @@
 import SectionHeading from "@/components/section-heading";
-import { Button } from "@/components/ui/button";
 import {
 	Award,
 	Settings,
@@ -98,9 +97,7 @@ const WhyChooseUs = () => {
 				))}
 			</div>
 
-			<div className="row w-full text-center mt-5">
-				<Button>Get a Quote Now</Button>
-			</div>
+			{/* Call-to-action button removed per request */}
 		</section>
 	);
 };

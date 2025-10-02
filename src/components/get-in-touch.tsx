@@ -11,7 +11,7 @@ const GetInTouch = () => {
 	};
 
 	return (
-		<section data-aos="fade-up" className="py-1">
+		<section id="contactform" data-aos="fade-up" className="py-1">
 			<SectionHeading
 				title={sectionHeadingProp.title}
 				description={sectionHeadingProp.description}
