@@ -109,14 +109,20 @@ const ServiceCard = ({ serviceItem }: ServiceCardProps) => {
 					size="sm"
 					className="w-full"
 					onClick={() => {
-						if (serviceItem.cta.toLowerCase().includes("free consultation")) {
+						const cta = serviceItem.cta?.toLowerCase() ?? "";
+						// Treat 'free consultation' and scheduling/installation CTAs as requests to contact
+						if (
+							cta.includes("free consultation") ||
+							cta.includes("schedule") ||
+							cta.includes("installation")
+						) {
 							const el = document.getElementById("contactform");
 							if (el) {
 								// Apply offset (e.g., sticky header height ~70px) to avoid overscrolling
 								const headerOffset = 70; // adjust if header height changes
 								const elementPosition = el.getBoundingClientRect().top + window.scrollY;
 								const offsetPosition = elementPosition - headerOffset;
-							
+
 								window.scrollTo({
 									top: offsetPosition,
 									behavior: "smooth",

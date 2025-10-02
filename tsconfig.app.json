@@ -21,7 +21,7 @@
 		"noFallthroughCasesInSwitch": true, // Warn on fallthrough cases in switch statements
 
 		/* Paths for ShadCN */
-		"baseUrl": ".", // Base URL for path resolution
+		//"baseUrl": ".", // Base URL for path resolution
 		"paths": {
 			"@/*": ["./src/*"] // Map @/* to ./src/*
 		},

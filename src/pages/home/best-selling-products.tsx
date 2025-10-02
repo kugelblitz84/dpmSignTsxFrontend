@@ -43,7 +43,7 @@ const BestSellingProducts = () => {
 	const [bestSelling, setBestSelling] = useState<BestByCategoryItem[]>([]);
 	const [loading, setLoading] = useState<boolean>(false);
 	const [error, setError] = useState<string | null>(null);
-	const [slidesToShow, setSlidesToShow] = useState<number>(1);
+	// slidesToShow not needed for simplified slideshow
 
 	useEffect(() => {
 		let cancelled = false;
@@ -93,20 +93,8 @@ const BestSellingProducts = () => {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [products.length]);
 
-	// compute slidesToShow based on current window width (integer values)
-	const computeSlidesForWidth = (w: number) => {
-		if (w >= 1280) return 3;
-		if (w >= 1024) return 2;
-		if (w >= 640) return 1;
-		return 1;
-	};
 
-	useEffect(() => {
-		const setFromWidth = () => setSlidesToShow(computeSlidesForWidth(window.innerWidth));
-		setFromWidth();
-		window.addEventListener("resize", setFromWidth);
-		return () => window.removeEventListener("resize", setFromWidth);
-	}, []);
+	// Swiper breakpoints handle responsive slidesPerView; no manual resize listener needed
 
 	const categoriesById = useMemo(
 		() => new Map(categories.map((c) => [c.categoryId, c])),
@@ -115,6 +103,9 @@ const BestSellingProducts = () => {
 
 	// Map of products from the main catalog for quick lookup by productId
 	const productsById = useMemo(() => new Map(products.map((pr) => [pr.productId, pr])), [products]);
+
+	// Simplified slideshow: loop when there are at least 2 items and slide one item per transition.
+	const enableLoop = bestSelling.length > 1;
 
 	return (
 		<section data-aos="fade-up" className="py-8">
@@ -129,61 +120,57 @@ const BestSellingProducts = () => {
 				{!loading && bestSelling.length > 0 && (
 					<div className="py-4">
 						{/* If all items fit into slidesToShow, render a static grid; otherwise render a Swiper slideshow */}
-						{bestSelling.length <= slidesToShow ? (
-							<div className="flex flex-wrap justify-center gap-8 w-full mx-auto max-w-6xl">
-								{bestSelling.map((p) => {
-									const productFromCatalog = productsById.get((p as any).productId);
-									const productToShow = productFromCatalog ?? (p as unknown as ProductProps);
-									return (
-										<div key={p.productId} className="flex flex-col items-center gap-2 w-full max-w-[260px]">
-											<ProductCard product={productToShow} />
-											{p.categoryId && categoriesById.get(p.categoryId) && (
-												<span className="text-sm text-gray-600 block mt-1 text-center">
-													Top in {categoriesById.get(p.categoryId)!.name}
-												</span>
-											)}
-										</div>
-									);
-								})}
-							</div>
-						) : (
-							<>
+						{/* Always render Swiper slideshow for best sellers; autoplay at 1.5s */}
+						{!loading && bestSelling.length > 0 && (
+							<div className="py-4">
 								<div className="flex justify-center">
 									<Swiper
-									modules={[Autoplay, Pagination]}
-									spaceBetween={16}
-									loop={true}
-									autoplay={{
-										delay: 2200,
-										disableOnInteraction: false,
-										pauseOnMouseEnter: true,
-									}}
-									pagination={{ clickable: true, el: ".best-sellers-pagination" }}
-									className="pb-12"
-									slidesPerView={slidesToShow}
-									centeredSlides={true}
-									centeredSlidesBounds={true}
-								>
-									{bestSelling.map((p) => {
-										const productFromCatalog = productsById.get((p as any).productId);
-										const productToShow = productFromCatalog ?? (p as unknown as ProductProps);
-										return (
-											<SwiperSlide key={p.productId} className="flex justify-center">
-												<div className="flex flex-col gap-2 w-full max-w-[260px] items-center">
-													<ProductCard product={productToShow} />
-													{p.categoryId && categoriesById.get(p.categoryId) && (
-														<span className="text-sm text-gray-600 block mt-1 text-center">
-															Top in {categoriesById.get(p.categoryId)!.name}
-														</span>
-													)}
-												</div>
-											</SwiperSlide>
-										);
-									})}
+										modules={[Autoplay, Pagination]}
+										spaceBetween={16}
+										loop={enableLoop}
+										autoplay={{
+											delay: 1500,
+											disableOnInteraction: false,
+											pauseOnMouseEnter: false,
+										}}
+										pagination={{ clickable: true, el: ".best-sellers-pagination" }}
+										className="pb-12"
+										slidesPerGroup={1}
+										// responsive slidesPerView: 1 on small, 2 on medium, 3 on large
+										breakpoints={{
+											0: { slidesPerView: 1 },
+											1024: { slidesPerView: 2 },
+											1280: { slidesPerView: 3 },
+										}}
+										speed={600}
+										centeredSlides={false}
+										centeredSlidesBounds={false}
+										observer={true}
+										observeParents={true}
+										allowTouchMove={true}
+										watchOverflow={false}
+									>
+										{bestSelling.map((p, idx) => {
+											const productFromCatalog = productsById.get((p as any).productId);
+											const productToShow = productFromCatalog ?? (p as unknown as ProductProps);
+											const key = (p as any).productId ?? `best-${idx}`;
+											return (
+												<SwiperSlide key={key} className="flex justify-center">
+													<div className="flex flex-col gap-2 w-full max-w-[260px] items-center">
+														<ProductCard product={productToShow} />
+														{p.categoryId && categoriesById.get(p.categoryId) && (
+															<span className="text-sm text-gray-600 block mt-1 text-center">
+																Top in {categoriesById.get(p.categoryId)!.name}
+															</span>
+														)}
+													</div>
+												</SwiperSlide>
+											);
+										})}
 									</Swiper>
 								</div>
 								<div className="best-sellers-pagination mt-3 flex items-center justify-center gap-2" />
-							</>
+							</div>
 						)}
 					</div>
 				)}
