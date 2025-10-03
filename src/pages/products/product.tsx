@@ -408,7 +408,7 @@ const Product = () => {
 	return (
 		<section className="py-8 xl:py-8 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 2xl:px-24 3xl:px-32 4xl:px-40">
 			{/* header */}
-			<div ref={headerRef} className="row pb-5 max-w-8xl mx-auto">
+			<div ref={headerRef} className="row pb-2 max-w-8xl mx-auto">
 				{!loading && (
 					<Breadcrumb className="pb-5">
 						<BreadcrumbList>
@@ -506,7 +506,7 @@ const Product = () => {
 			</div>
 
 			{/* Main Product Content Area */}
-			<div className="row xl:relative pt-8 pb-10 max-w-8xl mx-auto grid grid-cols-1 lg:grid-cols-5 xl:grid-cols-7 place-items-start items-start justify-between gap-4 lg:gap-6 xl:gap-8">
+			<div className="row xl:relative pt-4 pb-10 max-w-8xl mx-auto grid grid-cols-1 lg:grid-cols-5 xl:grid-cols-7 place-items-start items-start justify-between gap-4 lg:gap-6 xl:gap-8">
 				{/* Left Column: Images + Description (normal scroll) */}
 			<div className="w-full md:grid md:grid-cols-5 gap-4 lg:col-span-3 xl:col-span-4">
 					{!loading && product && (
@@ -623,8 +623,8 @@ const Product = () => {
 						</>
 					)}
 
-				{/* Product Description - placed under images */}
-				<div className="w-full md:col-span-5 mt-6 order-3">
+				{/* Product Description (desktop / tablet) - stays under images */}
+				<div className="w-full md:col-span-5 mt-6 order-3 hidden md:block">
 					{!loading && product && (
 						<div className="w-full bg-gray-50/50 rounded-lg p-4 border border-gray-100">
 							<ProductAttributes product={product} />
@@ -652,6 +652,17 @@ const Product = () => {
 										</div>
 									</div>
 							))}
+						</div>
+					)}
+
+					{/* Desktop Reviews integrated under description */}
+					{!loading && product && product.reviews && (
+						<div className="w-full mt-8 hidden md:block">
+							<Separator orientation="horizontal" className="bg-gray/30" />
+							<ProductReview
+								productId={product.productId}
+								reviews={product.reviews}
+							/>
 						</div>
 					)}
 				</div>
@@ -1113,11 +1124,44 @@ const Product = () => {
 						</div>
 				</div>
 
+				{/* Mobile-only Product Description (after order card) */}
+				<div className="w-full block md:hidden mt-4">
+					{!loading && product && (
+						<div className="w-full bg-gray-50/50 rounded-lg p-4 border border-gray-100">
+							<ProductAttributes product={product} />
+						</div>
+					)}
+					{loading && (
+						<div className="w-full bg-gray-50/50 rounded-lg p-4 border border-gray-100">
+							{Array(3)
+								.fill(0)
+								.map((_, index) => (
+									<div key={index} className="mb-4">
+										<Skeleton className="h-7 w-40 mb-3" />
+										<div className="grid grid-cols-1 gap-4">
+											{Array(4)
+												.fill(0)
+												.map((_, attrIndex) => (
+													<div
+														key={attrIndex}
+														className="flex items-center gap-2"
+													>
+														<Skeleton className="h-5 w-32" />
+														<Skeleton className="h-5 w-20" />
+													</div>
+												))}
+										</div>
+									</div>
+								))}
+						</div>
+					)}
+				</div>
+
 				{/* (Bottom section removed; merged above) */}
 			</div>
 
-			{/* Reviews moved here (before related products) for mobile-first ordering */}
-			<div className="row w-full py-4 lg:py-5 mt-2 h-auto max-w-8xl mx-auto">
+			{/* Mobile reviews (desktop version embedded above) */}
+			<div className="row w-full py-4 lg:py-5 mt-2 h-auto max-w-8xl mx-auto md:hidden">
 				{!loading && product && product.reviews && (
 					<>
 						<Separator orientation="horizontal" className="bg-gray/30" />
