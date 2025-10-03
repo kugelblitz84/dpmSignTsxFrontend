@@ -1,10 +1,16 @@
 import SectionHeading from "@/components/section-heading";
 import { LoginRegistrationForm } from "@/pages/account/login-registration-form";
 import AccountIllustrator from "@/assets/icons/account-illustrator.svg";
+import SEO from "@/components/seo";
 
 const Account = () => {
 	return (
 		<section className="py-2 md:py-0">
+			<SEO
+				title="My Account | Dhaka Plastic & Metal"
+				description="Access your account dashboard to view recent orders, manage your shipping and billing addresses, and edit your password and account details at DPM Sign."
+				image={AccountIllustrator}
+			/>
 			<SectionHeading
 				title={"Account"}
 				description={

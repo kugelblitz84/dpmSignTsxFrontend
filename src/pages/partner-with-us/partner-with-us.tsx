@@ -5,6 +5,7 @@ import { Building2, GraduationCap, Mail, MapPin, Phone } from "lucide-react";
 import ProgramCard, { Program } from "@/pages/partner-with-us/program-card";
 import StepCard from "@/pages/partner-with-us/step-card";
 import SectionHeading from "@/components/section-heading";
+import SEO from "@/components/seo";
 
 interface Step {
 	title: string;
@@ -79,6 +80,10 @@ const PartnerWithUs: React.FC = () => {
 
 	return (
 		<>
+			<SEO
+				title="Partnership Opportunities | Dhaka Plastic & Metal"
+				description="Let's grow together. We welcome collaboration with architects, designers, and businesses. Partner with us to deliver exceptional branding solutions."
+			/>
 			{/* Hero Section */}
 			<section className="py-10">
 				<SectionHeading

@@ -2,6 +2,39 @@ import { apiBaseURL } from "@/lib/dotenv";
 import { apiClient, ApiError } from "@/api";
 import { AxiosError } from "axios";
 
+// Helper function to extract error message from API response
+const extractErrorMessage = (err: any): string => {
+	if (err instanceof AxiosError) {
+		const responseData = err.response?.data;
+		return (
+			responseData?.message ||
+			responseData?.error ||
+			err.message ||
+			"An error occurred"
+		);
+	}
+	return err?.message || "An unknown error occurred";
+};
+
+// Helper function to create standardized API error
+const createApiError = (err: any): ApiError => {
+	if (err instanceof AxiosError) {
+		const responseData = err.response?.data;
+		return {
+			name: err.name || "AxiosError",
+			status: responseData?.status || err.response?.status || err.status,
+			message: extractErrorMessage(err),
+			error: err,
+		};
+	}
+	return {
+		name: "ApiError",
+		status: err?.status || 500,
+		message: extractErrorMessage(err),
+		error: err,
+	};
+};
+
 class Cart {
 	private cartBaseUrl: string;
 	private cartAddUrl: string;
@@ -39,31 +72,7 @@ class Cart {
 			});
 			return response.data;
 		} catch (err: any) {
-			let fetchRequestError: ApiError;
-
-			if (err instanceof AxiosError) {
-				fetchRequestError = {
-					name: err.name || "AxiosError",
-					status:
-						err.response?.data?.status ||
-						err.response?.data?.status ||
-						err.status,
-					message:
-						err.response?.data?.message ||
-						err.response?.data?.error ||
-						err.message,
-					error: err,
-				};
-				throw fetchRequestError;
-			} else {
-				fetchRequestError = err.response.data || err.response.data.error;
-				fetchRequestError.status = err.response.data.status;
-				fetchRequestError.message =
-					fetchRequestError.message ||
-					fetchRequestError.error.message ||
-					"An unknown error occured.";
-				throw fetchRequestError;
-			}
+			throw createApiError(err);
 		}
 	};
 
@@ -79,31 +88,7 @@ class Cart {
 			);
 			return response.data;
 		} catch (err: any) {
-			let fetchRequestError: ApiError;
-
-			if (err instanceof AxiosError) {
-				fetchRequestError = {
-					name: err.name || "AxiosError",
-					status:
-						err.response?.data?.status ||
-						err.response?.data?.status ||
-						err.status,
-					message:
-						err.response?.data?.message ||
-						err.response?.data?.error ||
-						err.message,
-					error: err,
-				};
-				throw fetchRequestError;
-			} else {
-				fetchRequestError = err.response.data || err.response.data.error;
-				fetchRequestError.status = err.response.data.status;
-				fetchRequestError.message =
-					fetchRequestError.message ||
-					fetchRequestError.error.message ||
-					"An unknown error occured.";
-				throw fetchRequestError;
-			}
+			throw createApiError(err);
 		}
 	};
 
@@ -119,31 +104,7 @@ class Cart {
 			);
 			return response.data;
 		} catch (err: any) {
-			let fetchRequestError: ApiError;
-
-			if (err instanceof AxiosError) {
-				fetchRequestError = {
-					name: err.name || "AxiosError",
-					status:
-						err.response?.data?.status ||
-						err.response?.data?.status ||
-						err.status,
-					message:
-						err.response?.data?.message ||
-						err.response?.data?.error ||
-						err.message,
-					error: err,
-				};
-				throw fetchRequestError;
-			} else {
-				fetchRequestError = err.response.data || err.response.data.error;
-				fetchRequestError.status = err.response.data.status;
-				fetchRequestError.message =
-					fetchRequestError.message ||
-					fetchRequestError.error.message ||
-					"An unknown error occured.";
-				throw fetchRequestError;
-			}
+			throw createApiError(err);
 		}
 	};
 }

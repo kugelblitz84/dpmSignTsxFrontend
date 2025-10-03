@@ -74,3 +74,53 @@ export const stripBlobs = <T>(input: T): T => {
 	}
 	return input;
 };
+
+// API Error handling utilities
+export interface ApiErrorInfo {
+	message: string;
+	isUnauthorized: boolean;
+	shouldRetry: boolean;
+}
+
+export const handleApiError = (error: unknown): ApiErrorInfo => {
+	// Check if it's an API error with status
+	if (error && typeof error === 'object' && 'status' in error) {
+		const apiError = error as any;
+		
+		if (apiError.status === 401) {
+			return {
+				message: "Your session has expired. Please log in again to continue.",
+				isUnauthorized: true,
+				shouldRetry: false,
+			};
+		}
+		
+		if (apiError.status >= 500) {
+			return {
+				message: apiError.message || "Server error. Please try again later.",
+				isUnauthorized: false,
+				shouldRetry: true,
+			};
+		}
+		
+		return {
+			message: apiError.message || "An error occurred. Please try again.",
+			isUnauthorized: false,
+			shouldRetry: false,
+		};
+	}
+	
+	if (error instanceof Error) {
+		return {
+			message: error.message,
+			isUnauthorized: false,
+			shouldRetry: false,
+		};
+	}
+	
+	return {
+		message: String(error) || "An unexpected error occurred.",
+		isUnauthorized: false,
+		shouldRetry: false,
+	};
+};

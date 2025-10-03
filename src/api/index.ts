@@ -43,6 +43,30 @@ export const apiClient = axios.create({
 	},
 });
 
+// Global response interceptor to handle common errors
+apiClient.interceptors.response.use(
+	(response) => {
+		return response;
+	},
+	(error) => {
+		// Check if it's an unauthorized error
+		if (error.response?.status === 401) {
+			// Clear localStorage and reload the page to reset auth state
+			localStorage.removeItem("token");
+			localStorage.removeItem("customer");
+			// Create a custom error object with a specific message for 401 errors
+			const authError: ApiError = {
+				name: "UnauthorizedError",
+				message: "Your session has expired. Please log in again to continue.",
+				status: 401,
+				error: error,
+			};
+			return Promise.reject(authError);
+		}
+		return Promise.reject(error);
+	}
+);
+
 export const ping = async () => {
 	try {
 		console.log(apiBaseURL);

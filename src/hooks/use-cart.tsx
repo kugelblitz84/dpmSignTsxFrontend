@@ -8,8 +8,10 @@ import React, {
 	useCallback,
 } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { cartService } from "@/api";
+import { cartService, ApiError } from "@/api";
 import { ProductProps } from "@/hooks/use-product";
+import { useToast } from "@/hooks/use-toast";
+// handleApiError not needed here; inline logic used
 
 export interface CartItemProps {
 	cartItemId: number;
@@ -60,7 +62,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
 	const [cartItems, setCartItems] = useState<CartItemProps[]>([]);
 	const [loading, setLoading] = useState<boolean>(false);
 	const [error, setError] = useState<string | null>(null);
-	const { customer, token } = useAuth();
+	const { customer, token, logout } = useAuth();
+	const { toast } = useToast();
 
 	const fetchCartItems = useCallback(async () => {
 		// Prevent duplicate server fetches, but allow guest refreshes even if loading
@@ -119,7 +122,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
 				customer.customerId
 			);
 
-			const updatedCartItems = response.data.cartItems.map(
+			// Handle the response structure properly based on the provided API response format
+			const cartItems = response.data?.cartItems || response.cartItems || [];
+			
+			const updatedCartItems = cartItems.map(
 				(cartItem: CartItemProps) => ({
 					...cartItem,
 					price: Number(cartItem.price),
@@ -129,8 +135,33 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
 
 			setCartItems(updatedCartItems);
 		} catch (err: unknown) {
-			const message = err instanceof Error ? err.message : String(err);
-			setError(message || "Failed to fetch cart items.");
+			let message = "Failed to fetch cart items.";
+			
+			// Check if it's an API error with status
+			if (err && typeof err === 'object' && 'status' in err) {
+				const apiError = err as ApiError;
+				if (apiError.status === 401) {
+					message = "Your session has expired. Please log in again to continue.";
+					// Show toast for unauthorized error
+					toast({
+						description: message,
+						variant: "destructive",
+						duration: 8000,
+					});
+					// Logout user
+					logout();
+					setError(null); // Clear error since we're handling it
+					return;
+				} else {
+					message = apiError.message || message;
+				}
+			} else if (err instanceof Error) {
+				message = err.message;
+			} else {
+				message = String(err);
+			}
+			
+			setError(message);
 		} finally {
 			setLoading(false);
 		}

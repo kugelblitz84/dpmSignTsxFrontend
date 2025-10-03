@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import SectionHeading from "@/components/section-heading";
 import routes from "@/routes";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import SEO from "@/components/seo";
 import { useState } from "react";
 
 interface Section {
@@ -541,6 +542,10 @@ const TermsNCondition = () => {
 
 	return (
 		<section className="py-6 xl:px-4 bg-gray-50">
+			<SEO
+				title="Terms and Conditions | Dhaka Plastic & Metal"
+				description="Please review our official terms and conditions. This page outlines the legal agreements for using our website and purchasing our products and services."
+			/>
 			<div className="flex justify-end mb-4 px-6 xl:px-20">
 				<ToggleGroup
 					type="single"

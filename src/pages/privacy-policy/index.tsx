@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import SectionHeading from "@/components/section-heading";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import SEO from "@/components/seo";
 import { useState } from "react";
 
 interface Section {
@@ -561,6 +562,10 @@ const PPolicy = () => {
 
 	return (
 		<section className="py-6 xl:px-4 bg-gray-50">
+			<SEO
+				title="Privacy Policy | Dhaka Plastic & Metal"
+				description="Your privacy is important to us. Read our policy to understand how we collect, use, and protect your personal and business information."
+			/>
 			<div className="flex justify-end mb-4 px-6 xl:px-20">
 				<ToggleGroup
 					type="single"

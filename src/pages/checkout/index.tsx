@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Trash, Upload } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { formatPrice, safeCreateObjectURL, stripBlobs } from "@/lib/utils";
+import { formatPrice, safeCreateObjectURL, stripBlobs, handleApiError } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { currencySymbol } from "@/config";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -157,10 +157,30 @@ const Checkout = () => {
 				const response = token
 					? await courierService.fetchAllCourier(token)
 					: await courierService.fetchAllCourierPublic();
-				setCouriers(response.data.couriers);
+				setCouriers(response.data.couriers || []);
 			} catch (err: unknown) {
-				const message = err instanceof Error ? err.message : String(err);
+				let message = "Failed to load courier services.";
+				
+				if (err && typeof err === 'object' && 'status' in err) {
+					const apiError = err as any;
+					if (apiError.status === 401) {
+						message = "Your session has expired. Please log in again to continue.";
+						setAuthModalTab("login");
+						setAuthModalOpen(true);
+						return;
+					} else {
+						message = apiError.message || message;
+					}
+				} else if (err instanceof Error) {
+					message = err.message;
+				}
+				
 				console.log(message);
+				toast({
+					description: message,
+					variant: "destructive",
+					duration: 8000,
+				});
 			}
 		};
 
@@ -171,19 +191,40 @@ const Checkout = () => {
 					: await staffService.fetchAllStaffPublic();
 
 				setStaff(
-					response.data.staff.filter(
+					response.data.staff?.filter(
 						(staffItem: StaffProps) => !staffItem.isDeleted
-					)
+					) || []
 				);
 			} catch (err: unknown) {
-				const message = err instanceof Error ? err.message : String(err);
+				let message = "Failed to load staff information.";
+				
+				if (err && typeof err === 'object' && 'status' in err) {
+					const apiError = err as any;
+					if (apiError.status === 401) {
+						message = "Your session has expired. Please log in again to continue.";
+						setAuthModalTab("login");
+						setAuthModalOpen(true);
+						return;
+					} else {
+						message = apiError.message || message;
+					}
+				} else if (err instanceof Error) {
+					message = err.message;
+				}
+				
 				console.log(message);
+				toast({
+					description: message,
+					variant: "destructive",
+					duration: 8000,
+				});
 			}
 		};
 
 		fetchCouriers();
 		fetchStaff();
 
+		// Handle cart errors from the useCart hook
 		if (error) {
 			toast({
 				description: error,
@@ -191,7 +232,7 @@ const Checkout = () => {
 				duration: 10000,
 			});
 		}
-	}, [token, logout, toast, error]);
+	}, [token, logout, toast, error, setAuthModalTab, setAuthModalOpen]);
 
 	useEffect(() => {
 		// Don't redirect if user is in the middle of authentication process or recently authenticated
@@ -319,9 +360,9 @@ const Checkout = () => {
 			const response = await cartService.deleteCartItem(token, cartItemId);
 
 			toast({
-				description: response.message,
+				description: response.message || "Item removed from cart.",
 				variant: response.status === 200 ? "success" : "default",
-				duration: 10000,
+				duration: 5000,
 			});
 			await fetchCartItems();
 
@@ -331,10 +372,18 @@ const Checkout = () => {
 			}
 		} catch (err: unknown) {
 			setLoading(false);
-			const message = err instanceof Error ? err.message : String(err);
-			console.log(message);
+			
+			const errorInfo = handleApiError(err);
+			
+			if (errorInfo.isUnauthorized) {
+				// Show auth modal for unauthorized errors
+				setAuthModalTab("login");
+				setAuthModalOpen(true);
+			}
+			
+			console.log(errorInfo.message);
 			toast({
-				description: message,
+				description: errorInfo.message,
 				variant: "destructive",
 				duration: 10000,
 			});
@@ -493,17 +542,24 @@ const Checkout = () => {
 								authToken,
 								authCustomer.customerId
 							);
+							// Handle the response structure properly
 							const items: Array<{ cartItemId: number }> =
-								serverCart?.data?.cartItems ?? serverCart?.cartItems ?? [];
+								serverCart?.data?.cartItems || serverCart?.cartItems || [];
 							for (const it of items) {
 								try {
 									await cartService.deleteCartItem(authToken, it.cartItemId);
-								} catch {}
+								} catch (deleteError: any) {
+									console.log("Error deleting cart item:", deleteError);
+									// Continue with other items
+								}
 							}
 							// Clear UI cart immediately for responsiveness
 							setCartItems([]);
 						}
-					} catch {}
+					} catch (clearError: any) {
+						console.log("Error clearing cart:", clearError);
+						// Don't fail the order process if cart clearing fails
+					}
 				}
 				// Clear any local guest snapshots BEFORE refreshing to avoid repopulating UI from localStorage
 				localStorage.removeItem("guestCheckout");
@@ -514,7 +570,26 @@ const Checkout = () => {
 			}
 		} catch (err: unknown) {
 			setRequestOrderLoading.close();
-			const message = err instanceof Error ? err.message : String(err);
+			
+			let message = "Failed to submit your order.";
+			
+			if (err && typeof err === 'object' && 'status' in err) {
+				const apiError = err as any;
+				if (apiError.status === 401) {
+					message = "Your session has expired. Please log in again to continue.";
+					// Clear auth data and show login modal
+					logout();
+					setAuthModalTab("login");
+					setAuthModalOpen(true);
+				} else {
+					message = apiError.message || message;
+				}
+			} else if (err instanceof Error) {
+				message = err.message;
+			} else {
+				message = String(err);
+			}
+			
 			console.log(message);
 			toast({
 				description: message,
@@ -535,7 +610,7 @@ const Checkout = () => {
 					subtotal
 				);
 
-				if (response.data.valid === true && response.status === 200) {
+				if (response.data?.valid === true && response.status === 200) {
 					setCheckoutFormData((prevData) => ({
 						...prevData,
 						couponId: response.data.coupon.couponId,
@@ -544,20 +619,44 @@ const Checkout = () => {
 					setDiscountApplied(true);
 
 					toast({
-						description: "Coupon applied.",
+						description: "Coupon applied successfully.",
 						variant: "success",
-						duration: 10000,
+						duration: 5000,
 					});
+				} else {
+					toast({
+						description: response.message || "Invalid or expired coupon code.",
+						variant: "destructive",
+						duration: 8000,
+					});
+					setCouponCode("");
 				}
 			}
 		} catch (err: unknown) {
 			setCouponCode("");
-			const message = err instanceof Error ? err.message : String(err);
+			
+			let message = "Failed to apply coupon.";
+			
+			if (err && typeof err === 'object' && 'status' in err) {
+				const apiError = err as any;
+				if (apiError.status === 401) {
+					message = "Your session has expired. Please log in again to continue.";
+					setAuthModalTab("login");
+					setAuthModalOpen(true);
+				} else {
+					message = apiError.message || message;
+				}
+			} else if (err instanceof Error) {
+				message = err.message;
+			} else {
+				message = String(err);
+			}
+			
 			console.log(message);
 			toast({
 				description: message,
 				variant: "destructive",
-				duration: 10000,
+				duration: 8000,
 			});
 		}
 	};
@@ -656,9 +755,22 @@ const Checkout = () => {
 						item.price
 					);
 					console.log(`Successfully added item ${i + 1}:`, result);
-				} catch (error) {
+				} catch (error: any) {
 					console.error(`Failed to add guest cart item ${i + 1} to server cart:`, error);
-					// Continue with other items even if one fails
+					
+					// Handle unauthorized errors specifically
+					if (error && typeof error === 'object' && 'status' in error && error.status === 401) {
+						console.log("Unauthorized error during cart merge - user needs to re-login");
+						toast({
+							description: "Your session has expired. Please log in again to continue.",
+							variant: "destructive",
+							duration: 8000,
+						});
+						// Don't continue processing if unauthorized
+						logout();
+						return;
+					}
+					// Continue with other items for other types of errors
 				}
 			}
 
@@ -1086,14 +1198,16 @@ const Checkout = () => {
 											</SelectTrigger>
 											<SelectContent>
 												<SelectGroup>
-													{staff.map((staffItem, index) => (
-														<SelectItem
-															key={index}
-															value={staffItem.staffId.toString()}
-														>
-															{staffItem?.name || "Staff"}
-														</SelectItem>
-													))}
+													{staff
+														.filter((staffItem) => staffItem.role?.toLowerCase() === "agent")
+														.map((staffItem, index) => (
+															<SelectItem
+																key={index}
+																value={staffItem.staffId.toString()}
+															>
+																{staffItem?.name || "Staff"}
+															</SelectItem>
+														))}
 												</SelectGroup>
 											</SelectContent>
 										</Select>
@@ -1133,7 +1247,7 @@ const Checkout = () => {
 												to={routes.returnPolicy.path}
 												target="_blank"
 											>
-												Return Policy
+												Return & Refund Policy
 											</Link>
 										</Label>
 									</div>

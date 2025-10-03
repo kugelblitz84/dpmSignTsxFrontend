@@ -7,10 +7,15 @@ import EmployeeTestimonial from "@/pages/career/employee-testimonial";
 import JobProvider from "@/hooks/use-job";
 import React from "react";
 import Hero from "@/pages/career/hero";
+import SEO from "@/components/seo";
 
 const OurCareer: React.FC = () => {
 	return (
 		<>
+			<SEO
+				title="Careers at Dhaka Plastic & Metal | Join Our Team"
+				description="Build your career at a leading signage company in Bangladesh. Explore current job openings at Dhaka Plastic & Metal and join our team of experts."
+			/>
 			<Hero />
 
 			{/* Open Positions */}

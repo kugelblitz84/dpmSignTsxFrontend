@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/use-auth";
 import routes from "@/routes";
 import { Eye, EyeClosed } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import SEO from "@/components/seo";
 
 const ResetPassword = () => {
 	const { login } = useAuth();
@@ -238,6 +239,10 @@ const ResetPassword = () => {
 
 	return (
 		<section className="py-20 md:py-40">
+			<SEO
+				title="Reset Your Password | Dhaka Plastic & Metal"
+				description="Forgot your password? Enter your email address to receive a link to securely reset your account password and regain access."
+			/>
 			<SectionHeading
 				title={SectionHeadingProps.title}
 				description={SectionHeadingProps.description}

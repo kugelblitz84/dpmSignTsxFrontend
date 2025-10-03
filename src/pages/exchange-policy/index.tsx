@@ -1,6 +1,7 @@
 import SectionHeading, {
 	SectionHeadingProps,
 } from "@/components/section-heading";
+import SEO from "@/components/seo";
 
 interface Section {
 	title: string;
@@ -230,6 +231,10 @@ const ExchangePolicy = () => {
 
 	return (
 		<section className="py-6 xl:px-4 bg-gray-50">
+			<SEO
+				title="Exchange Policy | Dhaka Plastic & Metal"
+				description="Understand our product exchange process. Our policy outlines the conditions and steps for a smooth and fair exchange of eligible orders."
+			/>
 			<SectionHeading
 				title={sectionHeadingProp.title}
 				description={sectionHeadingProp.description}

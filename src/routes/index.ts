@@ -121,11 +121,11 @@ const routes: Routes = {
 			"Finalize your purchase and place your order at Dhaka Plastic & Metal.",
 	},
 	returnPolicy: {
-		name: "Return Policy",
+		name: "Return & Refund Policy",
 		path: "/return-policy",
-		title: "Our Return Policy - Dhaka Plastic & Metal",
+		title: "Our Return & Refund Policy - Dhaka Plastic & Metal",
 		description:
-			"Understand our return policy to ensure a hassle-free shopping experience.",
+			"Understand our return & refund policy to ensure a clear, hassle-free shopping experience.",
 	},
 	exchangePolicy: {
 		name: "Exchange Policy",

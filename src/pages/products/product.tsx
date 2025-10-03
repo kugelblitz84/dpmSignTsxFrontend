@@ -31,7 +31,7 @@ import {
 	VariantProps,
 } from "@/hooks/use-product";
 import { currencyCode, currencySymbol } from "@/config";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { calculateSquareFeet, formatPrice } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -55,6 +55,11 @@ const Product = () => {
 	const { products, randomProducts, setExcludeProductId, loading } =
 		useProduct();
 	const [product, setProduct] = useState<ProductProps | null>(null);
+
+	// Refs / layout measurements
+	// headerRef kept in case we need future measurements of breadcrumb area (not used for sticky now)
+	const headerRef = useRef<HTMLDivElement | null>(null);
+	const [navHeight, setNavHeight] = useState<number>(0);
 
 	// (Removed dynamic margin logic; attributes & reviews moved directly beneath images to remove structural gap)
 
@@ -293,6 +298,21 @@ const Product = () => {
 		}
 	}, [product]);
 
+	// Measure the global site navigation/header height so the order card sticks just beneath it
+	useEffect(() => {
+		const measureNav = () => {
+			// Attempt common selectors; fallback to first header tag
+			const el =
+				(document.querySelector('[data-site-header]') as HTMLElement) ||
+				(document.querySelector('header') as HTMLElement) ||
+				undefined;
+			if (el) setNavHeight(el.getBoundingClientRect().height);
+		};
+		measureNav();
+		window.addEventListener('resize', measureNav);
+		return () => window.removeEventListener('resize', measureNav);
+	}, []);
+
 	const handleAddToCart = async () => {
 		setCartLoading(true);
 		try {
@@ -386,9 +406,9 @@ const Product = () => {
 	};
 
 	return (
-		<section className="py-8 xl:py-8 w-11/12 mx-auto">
+		<section className="py-8 xl:py-8 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 2xl:px-24 3xl:px-32 4xl:px-40">
 			{/* header */}
-			<div className="row pb-5">
+			<div ref={headerRef} className="row pb-5 max-w-8xl mx-auto">
 				{!loading && (
 					<Breadcrumb className="pb-5">
 						<BreadcrumbList>
@@ -480,10 +500,15 @@ const Product = () => {
 				</div>
 			</div>
 
+			{/* Separator between header and main content */}
+			<div className="w-full max-w-8xl mx-auto">
+				<Separator className="bg-gray-200 h-px" />
+			</div>
+
 			{/* Main Product Content Area */}
-			<div className="row xl:relative pb-10 grid grid-cols-1 xl:grid-cols-3 place-items-center items-start justify-between gap-0 xl:gap-8">
-				{/* Left Column: Images + Attributes + Reviews (col-span-2 on xl) */}
-			<div className="w-full md:grid md:grid-cols-5 gap-3 xl:col-span-2">
+			<div className="row xl:relative pt-8 pb-10 max-w-8xl mx-auto grid grid-cols-1 lg:grid-cols-5 xl:grid-cols-7 place-items-start items-start justify-between gap-4 lg:gap-6 xl:gap-8">
+				{/* Left Column: Images + Description (normal scroll) */}
+			<div className="w-full md:grid md:grid-cols-5 gap-4 lg:col-span-3 xl:col-span-4">
 					{!loading && product && (
 						<>
 						{/* Main Product Image (first) */}
@@ -491,7 +516,7 @@ const Product = () => {
 								<Dialog>
 									<DialogTrigger asChild>
 										<div
-											className="relative w-full rounded-md cursor-pointer bg-white border border-gray/20 p-2 xl:max-w-[620px] 2xl:max-w-[700px] mx-auto"
+											className="relative w-full rounded-md cursor-pointer bg-white border border-gray/20 p-2 lg:max-w-[500px] xl:max-w-[580px] 2xl:max-w-[650px] 3xl:max-w-[700px] mx-auto"
 										>
 											{/* Container maintains visibility before image load */}
 										<div className="relative w-full flex items-center justify-center overflow-hidden min-h-[240px] sm:min-h-[260px] md:min-h-[320px]">
@@ -537,7 +562,7 @@ const Product = () => {
 							</div>
 
 						{/* Thumbnails: horizontal strip on mobile, vertical list on desktop */}
-						<div className="w-full mt-3 md:mt-0 md:col-span-1 md:row-span-full order-2 md:order-none">
+						<div className="w-full mt-2 md:mt-0 md:col-span-1 md:row-span-full order-2 md:order-none">
 							{/* Mobile horizontal scroll */}
 							<div className="flex md:hidden gap-2 overflow-x-auto pb-1 -mx-1 px-1" aria-label="Product image thumbnails">
 								{product.images.map((img, idx) => (
@@ -597,11 +622,46 @@ const Product = () => {
 							</div>
 						</>
 					)}
-				{/* (Product description moved below order details as requested) */}
+
+				{/* Product Description - placed under images */}
+				<div className="w-full md:col-span-5 mt-6 order-3">
+					{!loading && product && (
+						<div className="w-full bg-gray-50/50 rounded-lg p-4 border border-gray-100">
+							<ProductAttributes product={product} />
+						</div>
+					)}
+					{loading && (
+						<div className="w-full bg-gray-50/50 rounded-lg p-4 border border-gray-100">
+							{Array(3)
+								.fill(0)
+								.map((_, index) => (
+									<div key={index} className="mb-4">
+										<Skeleton className="h-7 w-40 mb-3" />
+										<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+											{Array(4)
+												.fill(0)
+												.map((_, attrIndex) => (
+													<div
+														key={attrIndex}
+														className="flex items-center gap-2"
+													>
+														<Skeleton className="h-5 w-32" />
+														<Skeleton className="h-5 w-20" />
+													</div>
+												))}
+										</div>
+									</div>
+							))}
+						</div>
+					)}
+				</div>
 			</div>
 
-			{/* Right Column: Product Price Card (col-span-1 on xl) */}
-				<div className="w-full xl:col-span-1 mt-6 xl:mt-0 xl:sticky top-10 xl:top-32">
+			{/* Right Column: Product Price Card (sticky on large screens) */}
+				<div
+					className="w-full lg:col-span-2 xl:col-span-3 mt-4 lg:mt-0 lg:sticky lg:self-start"
+					style={{ top: navHeight ? navHeight + 16 : 96 }}
+				>
 					<div className="w-full xl:max-w-full xl:mx-auto">
 						<Card className="shadow-lg">
 							{cartLoading && (
@@ -1050,43 +1110,14 @@ const Product = () => {
 								{loading && <Skeleton className="h-10 w-full rounded-md" />}
 							</CardFooter>
 						</Card>
-					</div>
+						</div>
 				</div>
 
 				{/* (Bottom section removed; merged above) */}
 			</div>
 
-			{/* Product Description (moved here under order details) */}
-			<div className="row w-full py-8 mt-4">
-				{!loading && product && <ProductAttributes product={product} />}
-				{loading && (
-					<div className="w-full">
-						{Array(5)
-							.fill(0)
-							.map((_, index) => (
-								<div key={index} className="mb-4">
-									<Skeleton className="h-7 w-40 mb-3" />
-									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-										{Array(4)
-											.fill(0)
-											.map((_, attrIndex) => (
-												<div
-													key={attrIndex}
-													className="flex items-center gap-2"
-												>
-													<Skeleton className="h-5 w-32" />
-													<Skeleton className="h-5 w-20" />
-												</div>
-											))}
-									</div>
-								</div>
-						))}
-					</div>
-				)}
-			</div>
-
 			{/* Reviews moved here (before related products) for mobile-first ordering */}
-			<div className="row w-full py-5 mt-2 h-auto">
+			<div className="row w-full py-4 lg:py-5 mt-2 h-auto max-w-8xl mx-auto">
 				{!loading && product && product.reviews && (
 					<>
 						<Separator orientation="horizontal" className="bg-gray/30" />
@@ -1128,7 +1159,7 @@ const Product = () => {
 			</div>
 
 			{/* related products */}
-			<div className="row py-1 space-y-8">
+			<div className="row py-4 lg:py-6 space-y-6 lg:space-y-8 max-w-8xl mx-auto">
 				<div className="py-1">
 					<h2 className="w-full text-center text-3xl lg:text-4xl font-semibold py-4 relative after:content-[''] after:absolute after:w-20 after:h-[0.3rem] after:rounded-full after:bg-skyblue after:left-[50%] after:-translate-x-1/2 after:-bottom-1 after:transition-all after:duration-300">
 						Related Products

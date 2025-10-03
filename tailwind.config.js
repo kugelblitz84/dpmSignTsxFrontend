@@ -49,6 +49,10 @@ module.exports = {
 				"row-sm": "calc(100% - 2rem)",
 				row: "calc(100% - 4rem)",
 			},
+			maxWidth: {
+				'8xl': '80rem',
+				'9xl': '90rem',
+			},
 			height: {
 				"0-2rem": "0.2rem",
 			},
@@ -101,6 +105,10 @@ module.exports = {
 				100: "0.1s",
 				200: "0.2s",
 				300: "0.3s",
+			},
+			screens: {
+				'3xl': '1600px',
+				'4xl': '1920px',
 			},
 		},
 	},

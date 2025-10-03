@@ -1,4 +1,5 @@
 import SectionHeading from "@/components/section-heading";
+import SEO from "@/components/seo";
 
 interface Section {
 	title: string;
@@ -32,14 +33,17 @@ const ReturnPolicy = () => {
 					</p>
 					<ul className="list-disc list-inside space-y-2 text-lg font-semibold font-manrope pl-8">
 						<li>
-							Return is only applicable if your product qualifies for an exchange under our Exchange Policy.
+							Return is only applicable if your product qualifies for an exchange under our {" "}
+							<a href="/exchange-policy" className="text-skyblue hover:underline font-semibold focus:outline-none focus:ring-2 focus:ring-skyblue/60 rounded-sm">Exchange Policy</a>.
 						</li>
 						<li>
 							This includes instances such as major manufacturing defects or clear mismatches with the approved design.
 						</li>
 					</ul>
 					<p className="text-lg font-semibold">
-						We encourage all customers to thoroughly review our Exchange Policy to understand eligibility for returns and replacements.
+						We encourage all customers to thoroughly review our {" "}
+						<a href="/exchange-policy" className="text-skyblue hover:underline font-semibold focus:outline-none focus:ring-2 focus:ring-skyblue/60 rounded-sm">Exchange Policy</a>{" "}
+						to understand eligibility for returns and replacements.
 					</p>
 				</div>
 			),
@@ -75,7 +79,8 @@ const ReturnPolicy = () => {
 						<li>Errors occurred due to incorrect information provided during the order process.</li>
 					</ul>
 					<p className="text-lg font-semibold">
-						If you are dissatisfied with the delivered product, we do not offer refunds—but we do provide replacements under the terms outlined in our Exchange Policy.
+						If you are dissatisfied with the delivered product, we do not offer refunds—but we do provide replacements under the terms outlined in our {" "}
+						<a href="/exchange-policy" className="text-skyblue hover:underline font-semibold focus:outline-none focus:ring-2 focus:ring-skyblue/60 rounded-sm">Exchange Policy</a>.
 					</p>
 				</div>
 			),
@@ -117,7 +122,9 @@ const ReturnPolicy = () => {
 						<li>Cancellations are not accepted once production has begun due to the customized nature of our products.</li>
 					</ul>
 					<p className="text-lg font-semibold mt-4">
-						We believe in transparency, fairness, and customer satisfaction. Please read our Exchange Policy for complete details on replacements and eligibility conditions.
+						We believe in transparency, fairness, and customer satisfaction. Please read our {" "}
+						<a href="/exchange-policy" className="text-skyblue hover:underline font-semibold focus:outline-none focus:ring-2 focus:ring-skyblue/60 rounded-sm">Exchange Policy</a>{" "}
+						for complete details on replacements and eligibility conditions.
 					</p>
 				</div>
 			),
@@ -126,6 +133,10 @@ const ReturnPolicy = () => {
 
 	return (
 		<section className="py-6 xl:px-4 bg-gray-50">
+			<SEO
+				title="Return Policy | Dhaka Plastic & Metal"
+				description="Review the terms and conditions for product returns. Our policy ensures a clear and fair process for our valued customers."
+			/>
 			<SectionHeading
 				title={sectionHeadingProp.title}
 				description={sectionHeadingProp.description}

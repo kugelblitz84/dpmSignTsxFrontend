@@ -4,6 +4,7 @@ import { useBlog } from "@/hooks/use-blog";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { AppPagination } from "@/components/ui/app-pagination";
+import SEO from "@/components/seo";
 
 const Blogs = () => {
 	const { blogs, page, setPage, totalPages, error } = useBlog();
@@ -21,6 +22,10 @@ const Blogs = () => {
 
 	return (
 		<>
+			<SEO
+				title="Signage & Branding Insights | Dhaka Plastic & Metal Blog"
+				description="Explore the latest trends, tips, and insights in the signage and branding industry. Read our expert articles to make informed decisions for your brand."
+			/>
 			{blogs && blogs.length >= 3 && <BlogSlider blogs={blogs} />}
 			{blogs && blogs.length > 0 && <BlogsFeed blogs={blogs} />}
 

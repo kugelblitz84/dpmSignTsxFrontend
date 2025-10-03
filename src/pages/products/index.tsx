@@ -25,6 +25,7 @@ import { CategoryProps, useCategory } from "@/hooks/use-category";
 import { AppPagination } from "@/components/ui/app-pagination";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import SEO from "@/components/seo";
 
 const Products = () => {
 	const { products, totalPages, page, setPage, setLimit, loading } =
@@ -77,6 +78,10 @@ const Products = () => {
 
 	return (
 		<>
+			<SEO
+				title="Products - Dhaka Plastic & Metal | Signage & Corporate Gifts"
+				description="Browse our extensive product catalog, including 3D LED signs, award crests, nameplates, corporate gifts, and custom branding solutions in Bangladesh."
+			/>
 			{/* <section className="py-5 bg-heroBanner bg-cover bg-no-repeat bg-center text-white">
 				<SectionHeading
 					title={sectionHeadingProp.title}

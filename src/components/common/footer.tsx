@@ -22,7 +22,7 @@ const Footer = () => {
 									to={routes.returnPolicy.path}
 									className="text-lg font-normal hover:underline transition-all duration-300"
 								>
-									Return Policy
+									Return & Refund Policy
 								</Link>
 								<Link
 									to={routes.exchangePolicy.path}
