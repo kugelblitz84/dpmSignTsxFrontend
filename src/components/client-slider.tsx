@@ -1,12 +1,29 @@
-import BracImg from "@/assets/images/clients/brac.png";
-import BaImg from "@/assets/images/clients/bangladesh-army.png";
-import BpdbImg from "@/assets/images/clients/bangladesh-power-development-board.png";
-import BkashImg from "@/assets/images/clients/bkash.png";
-import BupImg from "@/assets/images/clients/bup.png";
-import PranImg from "@/assets/images/clients/pran.png";
-import RflImg from "@/assets/images/clients/rfl.png";
-import RunnerImg from "@/assets/images/clients/runner.png";
-import WaltonImg from "@/assets/images/clients/walton.png";
+// Load all logos from all subfolders in clients
+const corpLogos = Object.values(
+	import.meta.glob(
+		"@/assets/images/clients/Corporate Clients/*.{png,jpg,jpeg,svg,webp}",
+		{ eager: true, as: "url" }
+	)
+) as string[];
+const eduLogos = Object.values(
+	import.meta.glob(
+		"@/assets/images/clients/Educational Institutions/*.{png,jpg,jpeg,svg,webp}",
+		{ eager: true, as: "url" }
+	)
+) as string[];
+const govLogos = Object.values(
+	import.meta.glob(
+		"@/assets/images/clients/Government & NGOs/*.{png,jpg,jpeg,svg,webp}",
+		{ eager: true, as: "url" }
+	)
+) as string[];
+const smbLogos = Object.values(
+	import.meta.glob(
+		"@/assets/images/clients/Small Business & Retail/*.{png,jpg,jpeg,svg,webp}",
+		{ eager: true, as: "url" }
+	)
+) as string[];
+const allLogos = [...corpLogos, ...eduLogos, ...govLogos, ...smbLogos];
 
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay } from "swiper/modules";
@@ -15,61 +32,7 @@ import "swiper/css/pagination";
 import "swiper/css/navigation";
 
 // Define the type for a client object
-interface Client {
-	title: string;
-	img: string;
-	url: string;
-}
-
 const ClientsSlider = () => {
-	const clients: Client[] = [
-		{
-			title: "Brac",
-			img: BracImg,
-			url: "/",
-		},
-		{
-			title: "Bangladesh Army",
-			img: BaImg,
-			url: "/",
-		},
-		{
-			title: "Bangladesh Power Development Board",
-			img: BpdbImg,
-			url: "/",
-		},
-		{
-			title: "Bkash",
-			img: BkashImg,
-			url: "/",
-		},
-		{
-			title: "BUP",
-			img: BupImg,
-			url: "/",
-		},
-		{
-			title: "Pran",
-			img: PranImg,
-			url: "/",
-		},
-		{
-			title: "RFL",
-			img: RflImg,
-			url: "/",
-		},
-		{
-			title: "Runner",
-			img: RunnerImg,
-			url: "/",
-		},
-		{
-			title: "Walton",
-			img: WaltonImg,
-			url: "/",
-		},
-	];
-
 	return (
 		<section className="py-12 mt-6">
 			<Swiper
@@ -96,12 +59,12 @@ const ClientsSlider = () => {
 					},
 				}}
 			>
-				{clients.map((client, index) => (
+				{allLogos.map((logo, index) => (
 					<SwiperSlide key={index}>
 						<div className="flex items-center justify-center">
 							<img
-								src={client.img}
-								alt={client.title}
+								src={logo}
+								alt="Client logo"
 								className="max-w-full lg:w-1/2 filter  hover:filter-none transition-all duration-300 cursor-pointer mx-auto"
 							/>
 						</div>
