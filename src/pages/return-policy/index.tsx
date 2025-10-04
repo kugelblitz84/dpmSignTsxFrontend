@@ -9,19 +9,21 @@ interface Section {
 const ReturnPolicy = () => {
 	const sectionHeadingProp = {
 		title: "Return & Refund Policy",
-		description: (
-			<span>
-				Dhaka Plastic & Metal, we value every customer relationship and strive to deliver customized signage, award crests, and promotional or corporate gift items that exceed expectations. Since all our products are made-to-order, we follow a specific Return & Refund Policy to ensure clarity, fairness, and your peace of mind. This policy outlines the circumstances under which returns and refunds are processed, and how they are linked to our {" "}
-				<a
-					href="/exchange-policy"
-					className="text-skyblue hover:underline font-semibold focus:outline-none focus:ring-2 focus:ring-skyblue/60 rounded-sm"
-				>
-					Exchange Policy
-				</a>
-				.
-			</span>
-		),
 	};
+    
+	const description = (
+		<span>
+			Dhaka Plastic & Metal, we value every customer relationship and strive to deliver customized signage, award crests, and promotional or corporate gift items that exceed expectations. Since all our products are made-to-order, we follow a specific Return & Refund Policy to ensure clarity, fairness, and your peace of mind. This policy outlines the circumstances under which returns and refunds are processed, and how they are linked to our {" "}
+			<a
+				href="/exchange-policy"
+				className="text-skyblue hover:underline focus:outline-none focus:ring-2 focus:ring-skyblue/60 rounded-sm"
+			>
+				Exchange Policy
+			</a>
+			.
+		</span>
+	);
+
 
 	const sections: Section[] = [
 		{
@@ -137,10 +139,14 @@ const ReturnPolicy = () => {
 				title="Return Policy | Dhaka Plastic & Metal"
 				description="Review the terms and conditions for product returns. Our policy ensures a clear and fair process for our valued customers."
 			/>
-			<SectionHeading
-				title={sectionHeadingProp.title}
-				description={sectionHeadingProp.description}
-			/>
+			<SectionHeading title={sectionHeadingProp.title} />
+
+			{/* Non-bold description placed outside SectionHeading for this page */}
+			<div className="row flex items-center justify-center py-2">
+				<p className="text-base lg:text-lg lg:w-[65%] text-center">
+					{description}
+				</p>
+			</div>
 
 			<div className="row rounded-lg pt-10 p-6 xl:px-20 bg-slate-100/40 backdrop-blur-lg shadow-sm border border-gray/50">
 				{sections.map((section, idx) => (

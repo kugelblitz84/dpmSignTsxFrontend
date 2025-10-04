@@ -27,8 +27,8 @@ const JobPost: React.FC = () => {
 	if (jobs.length === 0) return null;
 
 	return (
-		<section className="py-10">
-			<SectionHeading title="Open Positions" />
+		<section className="py-2">
+			<SectionHeading title="We Are Hiring | Join Our Team" />
 
 			<div className="row py-5">
 				<div className="w-full flex items-center justify-center gap-2 flex-wrap">

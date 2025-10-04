@@ -31,7 +31,7 @@ import {
 	VariantProps,
 } from "@/hooks/use-product";
 import { currencyCode, currencySymbol } from "@/config";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { calculateSquareFeet, formatPrice } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -55,11 +55,6 @@ const Product = () => {
 	const { products, randomProducts, setExcludeProductId, loading } =
 		useProduct();
 	const [product, setProduct] = useState<ProductProps | null>(null);
-
-	// Refs / layout measurements
-	// headerRef kept in case we need future measurements of breadcrumb area (not used for sticky now)
-	const headerRef = useRef<HTMLDivElement | null>(null);
-	const [navHeight, setNavHeight] = useState<number>(0);
 
 	// (Removed dynamic margin logic; attributes & reviews moved directly beneath images to remove structural gap)
 
@@ -298,22 +293,7 @@ const Product = () => {
 		}
 	}, [product]);
 
-	// Measure the global site navigation/header height so the order card sticks just beneath it
-	useEffect(() => {
-		const measureNav = () => {
-			// Attempt common selectors; fallback to first header tag
-			const el =
-				(document.querySelector('[data-site-header]') as HTMLElement) ||
-				(document.querySelector('header') as HTMLElement) ||
-				undefined;
-			if (el) setNavHeight(el.getBoundingClientRect().height);
-		};
-		measureNav();
-		window.addEventListener('resize', measureNav);
-		return () => window.removeEventListener('resize', measureNav);
-	}, []);
-
-	const handleAddToCart = async () => {
+	const handleAddToCart = async (): Promise<boolean> => {
 		setCartLoading(true);
 		try {
 			if (product && productQuantity < product?.minOrderQuantity) {
@@ -354,7 +334,7 @@ const Product = () => {
 						duration: 5000,
 					});
 					setCartLoading(false);
-					return;
+					return true;
 				}
 				// Authenticated: Add to server cart
 				const response = await cartService.addItemToCart(
@@ -391,6 +371,7 @@ const Product = () => {
 				setSqFeet(calculateSquareFeet(0, 0, "inches"));
 				setProductQuantity(product?.minOrderQuantity || 1);
 				await fetchCartItems();
+				return true;
 			}
 		} catch (err: unknown) {
 			setCartLoading(false);
@@ -400,15 +381,17 @@ const Product = () => {
 				variant: "destructive",
 				duration: 10000,
 			});
+			return false;
 		} finally {
 			setCartLoading(false);
 		}
+		return false;
 	};
 
 	return (
 		<section className="py-8 xl:py-8 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 2xl:px-24 3xl:px-32 4xl:px-40">
 			{/* header */}
-			<div ref={headerRef} className="row pb-2 max-w-8xl mx-auto">
+			<div className="row pb-5 max-w-8xl mx-auto">
 				{!loading && (
 					<Breadcrumb className="pb-5">
 						<BreadcrumbList>
@@ -506,7 +489,7 @@ const Product = () => {
 			</div>
 
 			{/* Main Product Content Area */}
-			<div className="row xl:relative pt-4 pb-10 max-w-8xl mx-auto grid grid-cols-1 lg:grid-cols-5 xl:grid-cols-7 place-items-start items-start justify-between gap-4 lg:gap-6 xl:gap-8">
+			<div className="row xl:relative pt-8 pb-10 max-w-8xl mx-auto grid grid-cols-1 lg:grid-cols-5 xl:grid-cols-7 place-items-start items-start justify-between gap-4 lg:gap-6 xl:gap-8">
 				{/* Left Column: Images + Description (normal scroll) */}
 			<div className="w-full md:grid md:grid-cols-5 gap-4 lg:col-span-3 xl:col-span-4">
 					{!loading && product && (
@@ -623,8 +606,8 @@ const Product = () => {
 						</>
 					)}
 
-				{/* Product Description (desktop / tablet) - stays under images */}
-				<div className="w-full md:col-span-5 mt-6 order-3 hidden md:block">
+				{/* Product Description - placed under images */}
+				<div className="w-full md:col-span-5 mt-6 order-3">
 					{!loading && product && (
 						<div className="w-full bg-gray-50/50 rounded-lg p-4 border border-gray-100">
 							<ProductAttributes product={product} />
@@ -654,25 +637,12 @@ const Product = () => {
 							))}
 						</div>
 					)}
-
-					{/* Desktop Reviews integrated under description */}
-					{!loading && product && product.reviews && (
-						<div className="w-full mt-8 hidden md:block">
-							<Separator orientation="horizontal" className="bg-gray/30" />
-							<ProductReview
-								productId={product.productId}
-								reviews={product.reviews}
-							/>
-						</div>
-					)}
 				</div>
 			</div>
 
-			{/* Right Column: Product Price Card (sticky on large screens) */}
-				<div
-					className="w-full lg:col-span-2 xl:col-span-3 mt-4 lg:mt-0 lg:sticky lg:self-start"
-					style={{ top: navHeight ? navHeight + 16 : 96 }}
-				>
+			{/* Right Column: Product Price Card */}
+				<div className="w-full lg:col-span-2 xl:col-span-3 mt-4 lg:mt-0">
+					<div className="lg:self-start">
 					<div className="w-full xl:max-w-full xl:mx-auto">
 						<Card className="shadow-lg">
 							{cartLoading && (
@@ -1082,15 +1052,17 @@ const Product = () => {
 									<div className="w-full flex gap-1 xl:gap-3 items-center">
 										<Button
 											className="w-36 text-sm lg:text-lg lg:w-44 xl:text-xl xl:w-60"
-											onClick={() => {
-												handleAddToCart();
-												navigate(routes.checkout.path);
-												window.scrollTo(0, 0);
-												toast({
-													description: "Redirecting to checkout...",
-													variant: "default",
-													duration: 2000,
-												});
+											onClick={async () => {
+												const ok = await handleAddToCart();
+												if (ok) {
+													navigate(routes.checkout.path);
+													window.scrollTo(0, 0);
+													toast({
+														description: "Redirecting to checkout...",
+														variant: "default",
+														duration: 2000,
+													});
+												}
 											}}
 											disabled={
 												!matchedVariant || 
@@ -1121,47 +1093,15 @@ const Product = () => {
 								{loading && <Skeleton className="h-10 w-full rounded-md" />}
 							</CardFooter>
 						</Card>
-						</div>
-				</div>
-
-				{/* Mobile-only Product Description (after order card) */}
-				<div className="w-full block md:hidden mt-4">
-					{!loading && product && (
-						<div className="w-full bg-gray-50/50 rounded-lg p-4 border border-gray-100">
-							<ProductAttributes product={product} />
-						</div>
-					)}
-					{loading && (
-						<div className="w-full bg-gray-50/50 rounded-lg p-4 border border-gray-100">
-							{Array(3)
-								.fill(0)
-								.map((_, index) => (
-									<div key={index} className="mb-4">
-										<Skeleton className="h-7 w-40 mb-3" />
-										<div className="grid grid-cols-1 gap-4">
-											{Array(4)
-												.fill(0)
-												.map((_, attrIndex) => (
-													<div
-														key={attrIndex}
-														className="flex items-center gap-2"
-													>
-														<Skeleton className="h-5 w-32" />
-														<Skeleton className="h-5 w-20" />
-													</div>
-												))}
-										</div>
-									</div>
-								))}
-						</div>
-					)}
+					</div>
+					</div>
 				</div>
 
 				{/* (Bottom section removed; merged above) */}
 			</div>
 
-			{/* Mobile reviews (desktop version embedded above) */}
-			<div className="row w-full py-4 lg:py-5 mt-2 h-auto max-w-8xl mx-auto md:hidden">
+			{/* Reviews moved here (before related products) for mobile-first ordering */}
+			<div className="row w-full py-4 lg:py-5 mt-2 h-auto max-w-8xl mx-auto">
 				{!loading && product && product.reviews && (
 					<>
 						<Separator orientation="horizontal" className="bg-gray/30" />

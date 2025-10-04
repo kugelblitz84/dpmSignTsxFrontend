@@ -63,7 +63,12 @@ const CategoryProvider = ({ children }: { children: React.ReactNode }) => {
 				limit
 			);
 
-			setCategories(response.data.categories);
+			// Sort categories by creation date ascending (oldest first)
+			const sorted = [...response.data.categories].sort(
+				(a: CategoryProps, b: CategoryProps) =>
+					new Date(a.createdAt).valueOf() - new Date(b.createdAt).valueOf()
+			);
+			setCategories(sorted);
 			setTotalPages(response.data.totalPages);
 		} catch (err: any) {
 			setError(err.message || "Failed to fetch categories.");
@@ -88,12 +93,21 @@ const CategoryProvider = ({ children }: { children: React.ReactNode }) => {
 					limit
 				);
 
-				allCategories = [...allCategories, ...response.data.categories]; // Merge categories
+				allCategories = [...allCategories, ...response.data.categories]; // Merge categories from each page
 				totalPages = response.data.totalPages; // Update total pages
 				currentPage++; // Move to next page
 			}
 
-			setCategories(allCategories);
+			// Deduplicate by categoryId then sort by createdAt ascending
+			const uniqueMap = new Map<number, CategoryProps>();
+			for (const cat of allCategories) {
+				if (!uniqueMap.has(cat.categoryId)) uniqueMap.set(cat.categoryId, cat);
+			}
+			const sorted = Array.from(uniqueMap.values()).sort(
+				(a: CategoryProps, b: CategoryProps) =>
+					new Date(a.createdAt).valueOf() - new Date(b.createdAt).valueOf()
+			);
+			setCategories(sorted);
 		} catch (err: any) {
 			setError(err.message || "Failed to fetch all categories.");
 		} finally {
