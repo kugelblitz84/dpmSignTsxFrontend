@@ -266,7 +266,7 @@ const Product = () => {
 
 		setProduct(foundProduct); // Set the product state
 		setExcludeProductId(foundProduct.productId); // Exclude the product from random products
-	setActiveProductImage(foundProduct?.images?.[0] ?? null);
+		setActiveProductImage(foundProduct?.images[0]);
 		setDesignCharge(
 			foundProduct?.basePrice && foundProduct?.basePrice < 1000 ? 250 : 0
 		);
@@ -293,7 +293,7 @@ const Product = () => {
 		}
 	}, [product]);
 
-	const handleAddToCart = async (): Promise<boolean> => {
+	const handleAddToCart = async () => {
 		setCartLoading(true);
 		try {
 			if (product && productQuantity < product?.minOrderQuantity) {
@@ -334,7 +334,7 @@ const Product = () => {
 						duration: 5000,
 					});
 					setCartLoading(false);
-					return true;
+					return;
 				}
 				// Authenticated: Add to server cart
 				const response = await cartService.addItemToCart(
@@ -371,7 +371,6 @@ const Product = () => {
 				setSqFeet(calculateSquareFeet(0, 0, "inches"));
 				setProductQuantity(product?.minOrderQuantity || 1);
 				await fetchCartItems();
-				return true;
 			}
 		} catch (err: unknown) {
 			setCartLoading(false);
@@ -381,17 +380,15 @@ const Product = () => {
 				variant: "destructive",
 				duration: 10000,
 			});
-			return false;
 		} finally {
 			setCartLoading(false);
 		}
-		return false;
 	};
 
 	return (
-		<section className="py-8 xl:py-8 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 2xl:px-24 3xl:px-32 4xl:px-40">
+		<section className="py-8 xl:py-10 w-[95%] max-w-[84rem] mx-auto">
 			{/* header */}
-			<div className="row pb-5 max-w-8xl mx-auto">
+			<div className="row pb-5">
 				{!loading && (
 					<Breadcrumb className="pb-5">
 						<BreadcrumbList>
@@ -439,38 +436,42 @@ const Product = () => {
 				)}
 
 				{!loading && (
-					<>
-						<h3 className="text-2xl xl:text-3xl font-semibold">
-							{product?.name}
-						</h3>
-
-
-					</>
+					<h3 className="text-2xl xl:text-3xl font-semibold">
+						{product?.name}
+					</h3>
 				)}
 				{loading && <Skeleton className="h-9 w-2/3 max-w-md mb-4" />}
 
 				<div className="w-full pt-2 flex items-start flex-wrap gap-4">
-					<div className="py-2 flex items-start xl:items-center justify-start gap-4 flex-col xl:flex-row flex-wrap">
+					<div className="py-2 flex items-start xl:items-center justify-start gap-4 flex-col xl:flex-row flex-wrap xl:flex-nowrap">
 						{!loading && product && (
-							<div className="flex flex-col xl:flex-row gap-3 w-full">
-								<div className="flex items-center gap-2 flex-wrap">
-									<h5 className="min-w-fit text-base xl:text-lg font-medium">Product SKU:</h5>
+							<>
+								<h5 className="min-w-fit text-base xl:text-lg font-medium">
+									Product SKU:
+								</h5>
+								<div className="w-full flex items-start justify-start gap-2 flex-wrap xl:w-auto">
 									<Badge>{product?.sku}</Badge>
 								</div>
+
 								{product?.tags && product.tags.length > 0 && (
-									<div className="flex items-center gap-2 flex-wrap">
-										<span className="flex items-center gap-1 text-sm xl:text-base font-medium text-gray-700">
-											<TagIcon className="w-4 h-4 text-skyblue" />
-											<span>Tags:</span>
+									<div className="w-full xl:w-auto flex items-center gap-2 flex-wrap">
+										<span className="min-w-fit text-base xl:text-lg font-medium flex items-center gap-1">
+											<TagIcon size={16} className="text-[#2E57A5]" />
+											Tags:
 										</span>
-										{product.tags.map((t) => (
-											<Badge key={t.tagId} variant="secondary" className="text-xs py-1 px-2">
-												{t.tag}
-											</Badge>
-										))}
+										<div className="flex items-center gap-2 flex-wrap">
+											{product.tags.map((t) => (
+												<span
+													key={t.tagId}
+													className="rounded-md border px-3 py-1 text-sm font-medium bg-[#E8F2FF] border-[#2E57A5] text-[#2E57A5]"
+												>
+													{t.tag}
+												</span>
+											))}
+										</div>
 									</div>
 								)}
-							</div>
+							</>
 						)}
 
 						{loading && (
@@ -483,15 +484,10 @@ const Product = () => {
 				</div>
 			</div>
 
-			{/* Separator between header and main content */}
-			<div className="w-full max-w-8xl mx-auto">
-				<Separator className="bg-gray-200 h-px" />
-			</div>
-
 			{/* Main Product Content Area */}
-			<div className="row xl:relative pt-8 pb-10 max-w-8xl mx-auto grid grid-cols-1 lg:grid-cols-5 xl:grid-cols-7 place-items-start items-start justify-between gap-4 lg:gap-6 xl:gap-8">
-				{/* Left Column: Images + Description (normal scroll) */}
-			<div className="w-full md:grid md:grid-cols-5 gap-4 lg:col-span-3 xl:col-span-4">
+			<div className="row xl:relative pb-10 grid grid-cols-1 xl:grid-cols-12 place-items-stretch items-start justify-between gap-x-4 gap-y-1 xl:gap-x-6 xl:gap-y-1">
+				{/* Left: Images (narrower on xl, reduced gaps) */}
+			<div className="order-1 w-full md:grid md:grid-cols-5 gap-2 xl:col-span-7">
 					{!loading && product && (
 						<>
 						{/* Main Product Image (first) */}
@@ -499,7 +495,7 @@ const Product = () => {
 								<Dialog>
 									<DialogTrigger asChild>
 										<div
-											className="relative w-full rounded-md cursor-pointer bg-white border border-gray/20 p-2 lg:max-w-[500px] xl:max-w-[580px] 2xl:max-w-[650px] 3xl:max-w-[700px] mx-auto"
+											className="relative w-full rounded-md cursor-pointer bg-white border border-gray/20 p-2 xl:max-w-[560px] 2xl:max-w-[620px] mx-auto"
 										>
 											{/* Container maintains visibility before image load */}
 										<div className="relative w-full flex items-center justify-center overflow-hidden min-h-[240px] sm:min-h-[260px] md:min-h-[320px]">
@@ -545,9 +541,9 @@ const Product = () => {
 							</div>
 
 						{/* Thumbnails: horizontal strip on mobile, vertical list on desktop */}
-						<div className="w-full mt-2 md:mt-0 md:col-span-1 md:row-span-full order-2 md:order-none">
-							{/* Mobile horizontal scroll */}
-							<div className="flex md:hidden gap-2 overflow-x-auto pb-1 -mx-1 px-1" aria-label="Product image thumbnails">
+						<div className="w-full mt-3 md:mt-0 md:col-span-1 md:row-span-full order-2 md:order-none">
+							{/* Mobile horizontal scroll (reduced gap) */}
+							<div className="flex md:hidden gap-1 overflow-x-auto pb-1 -mx-1 px-1" aria-label="Product image thumbnails">
 								{product.images.map((img, idx) => (
 									<button
 										key={idx}
@@ -564,8 +560,8 @@ const Product = () => {
 								))}
 							</div>
 
-							{/* Desktop vertical stack (simple scroll if overflow) */}
-							<div className="hidden md:flex md:flex-col gap-2 max-h-[600px] overflow-y-auto pr-1" aria-label="Product image thumbnails vertical">
+							{/* Desktop vertical stack (reduced gap, simple scroll if overflow) */}
+							<div className="hidden md:flex md:flex-col gap-1.5 max-h-[600px] overflow-y-auto pr-1" aria-label="Product image thumbnails vertical">
 								{product.images.map((img, idx) => (
 									<button
 										key={idx}
@@ -606,43 +602,81 @@ const Product = () => {
 						</>
 					)}
 
-				{/* Product Description - placed under images */}
-				<div className="w-full md:col-span-5 mt-6 order-3">
-					{!loading && product && (
-						<div className="w-full bg-gray-50/50 rounded-lg p-4 border border-gray-100">
-							<ProductAttributes product={product} />
-						</div>
-					)}
-					{loading && (
-						<div className="w-full bg-gray-50/50 rounded-lg p-4 border border-gray-100">
-							{Array(3)
-								.fill(0)
-								.map((_, index) => (
-									<div key={index} className="mb-4">
-										<Skeleton className="h-7 w-40 mb-3" />
-										<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-											{Array(4)
+							{/* Desktop-only: Description and Reviews under images */}
+							<div className="hidden xl:block w-full md:col-span-5 mt-10">
+								{/* Product Attributes */}
+								{!loading && product && <ProductAttributes product={product} />}
+								{loading &&
+									Array(5)
+										.fill(0)
+										.map((_, index) => (
+											<div key={index} className="mb-4">
+												<Skeleton className="h-7 w-40 mb-3" />
+												<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+													{Array(4)
+														.fill(0)
+														.map((_, attrIndex) => (
+															<div
+																key={attrIndex}
+																className="flex items-center gap-2"
+															>
+																<Skeleton className="h-5 w-32" />
+																<Skeleton className="h-5 w-20" />
+															</div>
+														))}
+												</div>
+											</div>
+										))}
+
+								{/* Reviews */}
+								<div className="w-full py-5 mt-5 h-auto">
+									{!loading && product && product.reviews && (
+										<>
+											<Separator orientation="horizontal" className="bg-gray/30" />
+											<ProductReview
+												productId={product.productId}
+												reviews={product?.reviews}
+											/>
+										</>
+									)}
+									{loading && (
+										<div className="py-6 space-y-6">
+											<div className="flex justify-between items-center">
+												<Skeleton className="h-8 w-40" />
+												<Skeleton className="h-10 w-32 rounded-md" />
+											</div>
+
+											{Array(3)
 												.fill(0)
-												.map((_, attrIndex) => (
-													<div
-														key={attrIndex}
-														className="flex items-center gap-2"
-													>
-														<Skeleton className="h-5 w-32" />
-														<Skeleton className="h-5 w-20" />
+												.map((_, index) => (
+													<div key={index} className="p-4 rounded-lg space-y-3">
+														<div className="flex items-center gap-3">
+															<Skeleton className="h-12 w-12 rounded-full" />
+															<div>
+																<Skeleton className="h-6 w-32 mb-2" />
+																<Skeleton className="h-4 w-20" />
+															</div>
+														</div>
+														<div className="flex gap-1">
+															{Array(5)
+																.fill(0)
+																.map((_, starIdx) => (
+																	<Skeleton key={starIdx} className="h-4 w-4" />
+																))}
+														</div>
+														<Skeleton className="h-20 w-full" />
 													</div>
 												))}
 										</div>
-									</div>
-							))}
-						</div>
-					)}
-				</div>
-			</div>
+									)}
+								</div>
 
-			{/* Right Column: Product Price Card */}
-				<div className="w-full lg:col-span-2 xl:col-span-3 mt-4 lg:mt-0">
-					<div className="lg:self-start">
+								</div>
+
+							</div>
+
+				{/* Right Column: Product Price Card */}
+					<div className="order-2 w-full xl:col-span-5 mt-6 xl:mt-0 xl:sticky top-10 xl:top-32">
 					<div className="w-full xl:max-w-full xl:mx-auto">
 						<Card className="shadow-lg">
 							{cartLoading && (
@@ -1052,17 +1086,15 @@ const Product = () => {
 									<div className="w-full flex gap-1 xl:gap-3 items-center">
 										<Button
 											className="w-36 text-sm lg:text-lg lg:w-44 xl:text-xl xl:w-60"
-											onClick={async () => {
-												const ok = await handleAddToCart();
-												if (ok) {
-													navigate(routes.checkout.path);
-													window.scrollTo(0, 0);
-													toast({
-														description: "Redirecting to checkout...",
-														variant: "default",
-														duration: 2000,
-													});
-												}
+											onClick={() => {
+												handleAddToCart();
+												navigate(routes.checkout.path);
+												window.scrollTo(0, 0);
+												toast({
+													description: "Redirecting to checkout...",
+													variant: "default",
+													duration: 2000,
+												});
 											}}
 											disabled={
 												!matchedVariant || 
@@ -1094,62 +1126,89 @@ const Product = () => {
 							</CardFooter>
 						</Card>
 					</div>
+				</div>
+
+				{/* Product Description and Reviews: separate block to control mobile order */}
+				<div className="order-3 w-full xl:col-span-7 mt-0 xl:hidden">
+					{/* Product Attributes */}
+					{!loading && product && <ProductAttributes product={product} />}
+					{loading &&
+						Array(5)
+							.fill(0)
+							.map((_, index) => (
+								<div key={index} className="mb-4">
+									<Skeleton className="h-7 w-40 mb-3" />
+									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+										{Array(4)
+											.fill(0)
+											.map((_, attrIndex) => (
+												<div
+													key={attrIndex}
+													className="flex items-center gap-2"
+												>
+													<Skeleton className="h-5 w-32" />
+													<Skeleton className="h-5 w-20" />
+												</div>
+											))}
+									</div>
+								</div>
+							))}
+
+					{/* Reviews */}
+					<div className="w-full py-5 mt-5 h-auto">
+						{!loading && product && product.reviews && (
+							<>
+								<Separator orientation="horizontal" className="bg-gray/30" />
+								<ProductReview
+									productId={product.productId}
+									reviews={product?.reviews}
+								/>
+							</>
+						)}
+						{loading && (
+							<div className="py-6 space-y-6">
+								<div className="flex justify-between items-center">
+									<Skeleton className="h-8 w-40" />
+									<Skeleton className="h-10 w-32 rounded-md" />
+								</div>
+
+								{Array(3)
+									.fill(0)
+									.map((_, index) => (
+										<div key={index} className="p-4 rounded-lg space-y-3">
+											<div className="flex items-center gap-3">
+												<Skeleton className="h-12 w-12 rounded-full" />
+												<div>
+													<Skeleton className="h-6 w-32 mb-2" />
+													<Skeleton className="h-4 w-20" />
+												</div>
+											</div>
+											<div className="flex gap-1">
+												{Array(5)
+													.fill(0)
+													.map((_, starIdx) => (
+														<Skeleton key={starIdx} className="h-4 w-4" />
+													))}
+											</div>
+											<Skeleton className="h-20 w-full" />
+										</div>
+									))}
+							</div>
+						)}
 					</div>
 				</div>
 
 				{/* (Bottom section removed; merged above) */}
 			</div>
 
-			{/* Reviews moved here (before related products) for mobile-first ordering */}
-			<div className="row w-full py-4 lg:py-5 mt-2 h-auto max-w-8xl mx-auto">
-				{!loading && product && product.reviews && (
-					<>
-						<Separator orientation="horizontal" className="bg-gray/30" />
-						<ProductReview
-							productId={product.productId}
-							reviews={product?.reviews}
-						/>
-					</>
-				)}
-				{loading && (
-					<div className="py-6 space-y-6">
-						<div className="flex justify-between items-center">
-							<Skeleton className="h-8 w-40" />
-							<Skeleton className="h-10 w-32 rounded-md" />
-						</div>
-						{Array(3)
-							.fill(0)
-							.map((_, index) => (
-								<div key={index} className="p-4 rounded-lg space-y-3">
-									<div className="flex items-center gap-3">
-										<Skeleton className="h-12 w-12 rounded-full" />
-										<div>
-											<Skeleton className="h-6 w-32 mb-2" />
-											<Skeleton className="h-4 w-20" />
-										</div>
-									</div>
-									<div className="flex gap-1">
-										{Array(5)
-											.fill(0)
-											.map((_, starIdx) => (
-												<Skeleton key={starIdx} className="h-4 w-4" />
-											))}
-									</div>
-									<Skeleton className="h-20 w-full" />
-								</div>
-							))}
-					</div>
-				)}
-			</div>
-
 			{/* related products */}
-			<div className="row py-4 lg:py-6 space-y-6 lg:space-y-8 max-w-8xl mx-auto">
+			<div className="row py-1 space-y-8">
 				<div className="py-1">
 					<h2 className="w-full text-center text-3xl lg:text-4xl font-semibold py-4 relative after:content-[''] after:absolute after:w-20 after:h-[0.3rem] after:rounded-full after:bg-skyblue after:left-[50%] after:-translate-x-1/2 after:-bottom-1 after:transition-all after:duration-300">
 						Related Products
 					</h2>
 				</div>
-				<div className="w-full grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 place-items-center md:place-items-start">
+				<div className="w-full grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 justify-items-center md:justify-items-start items-start">
 					{randomProducts &&
 						randomProducts.map((product, index) => (
 							<ProductCard key={index} product={product} />
