@@ -125,7 +125,7 @@ const Products = () => {
 									Filter
 								</Button>
 							</SheetTrigger>
-							<SheetContent>
+							<SheetContent className="p-4 overflow-y-auto h-[85vh]">
 								<ProductFilter
 									categories={categories}
 									selectedCategories={selectedCategories}
