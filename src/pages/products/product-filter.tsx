@@ -406,7 +406,7 @@ const NestedCategoryAccordion = ({
 	};
 
 	return (
-		<div className="w-full category-accordion overflow-y-auto max-h-[70vh] md:max-h-none overscroll-contain pr-1">
+		<div className="w-full category-accordion sm:overflow-y-auto sm:max-h-[70vh] md:max-h-none overscroll-contain pr-1">
 			<Accordion
 				type="multiple"
 				value={expandedItems}
