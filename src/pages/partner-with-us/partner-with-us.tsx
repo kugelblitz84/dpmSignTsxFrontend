@@ -49,7 +49,7 @@ const PartnerWithUs: React.FC = () => {
 		{
 			title: "Apply",
 			description:
-				"Email us at info@dhakaplastics.com or visit our office with your details.",
+				"Email us at career@dpmsign.com or visit our office with your details.",
 		},
 		{
 			title: "Verification",
@@ -162,7 +162,15 @@ const PartnerWithUs: React.FC = () => {
 							</div>
 							<div className="w-full flex items-start xl:items-center flex-col gap-4">
 								<Separator className="opacity-20" />
-								<Button size="sm">Apply Now →</Button>
+								<Button size="sm" asChild>
+									<a
+										href="https://forms.gle/v8fHfyHSk25ddQRR9"
+										target="_blank"
+										rel="noopener noreferrer"
+									>
+										Apply Now →
+									</a>
+								</Button>
 							</div>
 						</CardContent>
 					</Card>
