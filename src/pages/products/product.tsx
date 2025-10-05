@@ -1086,16 +1086,16 @@ const Product = () => {
 									<div className="w-full flex gap-1 xl:gap-3 items-center">
 										<Button
 											className="w-36 text-sm lg:text-lg lg:w-44 xl:text-xl xl:w-60"
-											onClick={() => {
-												handleAddToCart();
-												navigate(routes.checkout.path);
-												window.scrollTo(0, 0);
-												toast({
-													description: "Redirecting to checkout...",
-													variant: "default",
-													duration: 2000,
-												});
-											}}
+													onClick={async () => {
+													await handleAddToCart();
+													navigate(routes.checkout.path);
+													window.scrollTo(0, 0);
+													toast({
+														description: "Redirecting to checkout...",
+														variant: "default",
+														duration: 2000,
+													});
+												}}
 											disabled={
 												!matchedVariant || 
 												(product?.pricingType === "square-feet" && (width === 0 || height === 0))
