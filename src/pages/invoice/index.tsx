@@ -169,27 +169,24 @@ const Invoice = () => {
         scrollY: -window.scrollY,
       });
 
-      const imgData = canvas.toDataURL("image/png");
+    const imgData = canvas.toDataURL("image/png");
 
-  // PDF already prepared above; use computed page metrics
+    // Map DOM pixels to PDF millimeters so sizes match print
+    const PX_TO_MM = 0.2645833333; // ~= 96dpi
+    let drawWidth = canvas.width * PX_TO_MM;
+    let drawHeight = canvas.height * PX_TO_MM;
 
-      // Calculate image size (mm) for full width
-      const imgWidth = pageWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    // Scale down if it exceeds page bounds (keep aspect ratio)
+    const maxWidth = pageWidth; // full-bleed width within margins
+    const maxHeight = safeHeight; // within top/bottom margins
+    const scale = Math.min(maxWidth / drawWidth, maxHeight / drawHeight, 1);
+    drawWidth *= scale;
+    drawHeight *= scale;
 
-      // If the capture would span multiple pages, scale it down to fit within safe height
-      let drawWidth = imgWidth;
-      let drawHeight = imgHeight;
-      if (imgHeight > safeHeight) {
-        const scale = safeHeight / imgHeight;
-        drawWidth = imgWidth * scale;
-        drawHeight = imgHeight * scale;
-      }
-
-  // Center horizontally and top-align vertically within safe area
-      const xOffset = (pageWidth - drawWidth) / 2;
-  const yOffset = topMargin;
-      pdf.addImage(imgData, "PNG", xOffset, yOffset, drawWidth, drawHeight, undefined, "FAST");
+    // Center horizontally, top-align vertically (like print)
+    const xOffset = (pageWidth - drawWidth) / 2;
+    const yOffset = topMargin;
+    pdf.addImage(imgData, "PNG", xOffset, yOffset, drawWidth, drawHeight, undefined, "FAST");
 
       const fileName = `Invoice-DPM-${orderId}.pdf`;
       pdf.save(fileName);
@@ -233,7 +230,7 @@ const Invoice = () => {
 
   if (!invoiceData) return <Preloader />;
 
-  const { order: currentOrder, agentInfo, subTotal, discountAmount, designCharge, installationCharge, grandTotal, amountDue } = invoiceData;
+  const { order: currentOrder, agentInfo, subTotal, discountAmount, designCharge, grandTotal, amountDue } = invoiceData;
 
   const courierName = currentOrder.courierId
     ? couriers.find((c) => c.courierId === currentOrder.courierId)?.name || "N/A"
@@ -254,9 +251,9 @@ const Invoice = () => {
 
   <div id="invoicePrintArea" ref={printRef} className="invoice-a4 w-[794px] min-h-[1123px] h-auto mx-auto pt-1 print:break-after-avoid-page bg-white p-6 font-sans text-black flex flex-col justify-between">
         <div id="printHeader" className="w-full flex items-center justify-between gap-2 px-3 pb-4 border-b-2 border-gray-300">
-          <div className="flex items-start justify-start gap-4">
+          <div className="flex items-center justify-start gap-4">
             <div className="flex items-center justify-center">
-              <img src="/icon.svg" alt="icon" className="max-w-[70px]" />
+              <img src="/icon.svg" alt="icon" className="h-14 w-auto object-contain" />
             </div>
             <div className="flex flex-col items-start gap-1">
               <h1 className="text-3xl tracking-wider font-bold text-red-600">Dhaka Plastic & Metal</h1>
@@ -361,8 +358,8 @@ const Invoice = () => {
                   <td className="px-3 py-2 text-right whitespace-nowrap align-middle">{designCharge.toLocaleString()} {currencyCode}</td>
                 </tr>
                 <tr className="bg-gray-50">
-                  <td className="px-3 py-2 text-right font-bold whitespace-nowrap align-middle">Installation Charge:</td>
-                  <td className="px-3 py-2 text-right whitespace-nowrap align-middle">{installationCharge.toLocaleString()} {currencyCode}</td>
+                  {/* <td className="px-3 py-2 text-right font-bold whitespace-nowrap align-middle">Installation Charge:</td>
+                  <td className="px-3 py-2 text-right whitespace-nowrap align-middle">{installationCharge.toLocaleString()} {currencyCode}</td> */}
                 </tr>
                 <tr className="bg-white">
                   <td className="px-3 py-2 text-right font-bold whitespace-nowrap align-middle">Discount:</td>
@@ -410,7 +407,7 @@ const Invoice = () => {
                 </div>
               </div>
 
-              <p className="mt-4 font-semibold text-xs italic text-gray-700">NB: Delivery charges are the customer’s responsibility (if applicable).</p>
+              <p className="mt-4 font-semibold text-xs italic text-gray-700">NB: Delivery & Installation charges are the customer’s responsibility (if applicable).</p>
             </div>
           )}
             {/* Flexible spacer to push footer to bottom when content is short (hidden on print) */}
