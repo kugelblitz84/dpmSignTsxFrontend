@@ -11,28 +11,28 @@ import { ProductProps } from "@/hooks/use-product";
 const ProductAttributes = ({ product }: { product: ProductProps }) => {
 	return (
 		<div className="">
-			<h3 className="text-lg lg:text-xl font-semibold">Product Description</h3>
+			<h3 className="text-sm md:text-base lg:text-xl font-semibold">Product Description</h3>
 
 			{product.attributes.length > 0 && (
 				<div className="w-full  ">
 					<Table className="border-collapse">
-						<TableHeader className="text-sm">
+						<TableHeader className="text-xs md:text-sm">
 							<TableRow>
-								<TableHead className="bg-skyblue text-white border-[2px] border-white px-8 w-1/3">
+								<TableHead className="bg-skyblue text-white border-[2px] border-white px-3 md:px-6 xl:px-8 w-1/3 text-[11px] md:text-sm">
 									Property
 								</TableHead>
-								<TableHead className="bg-skyblue text-white border-[2px] border-white px-8">
+								<TableHead className="bg-skyblue text-white border-[2px] border-white px-3 md:px-6 xl:px-8 text-[11px] md:text-sm">
 									Description
 								</TableHead>
 							</TableRow>
 						</TableHeader>
-						<TableBody className="text-sm">
+						<TableBody className="text-xs md:text-sm">
 							{product.attributes.map((attribute, index) => (
 								<TableRow key={index} className="border-gray/60">
-									<TableCell className="px-8 w-1/3">
+									<TableCell className="px-3 md:px-6 xl:px-8 w-1/3">
 										{attribute.property}
 									</TableCell>
-									<TableCell className="px-8">
+									<TableCell className="px-3 md:px-6 xl:px-8">
 										{attribute.description}
 									</TableCell>
 								</TableRow>

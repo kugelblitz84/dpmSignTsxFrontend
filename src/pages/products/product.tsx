@@ -390,31 +390,31 @@ const Product = () => {
 			{/* header */}
 			<div className="row pb-5">
 				{!loading && (
-					<Breadcrumb className="pb-5">
+						<Breadcrumb className="pb-5">
 						<BreadcrumbList>
 							<BreadcrumbItem>
-								<Link to={routes.home.path} className="text-base xl:text-lg">
+									<Link to={routes.home.path} className="text-xs md:text-sm xl:text-base">
 									<BreadcrumbLink className="font-medium hover:text-skyblue transition-all duration-300">
 										Home
 									</BreadcrumbLink>
 								</Link>
 							</BreadcrumbItem>
-							<BreadcrumbSeparator className="font-medium" />
+								<BreadcrumbSeparator className="font-medium text-xs md:text-sm xl:text-base" />
 							<BreadcrumbItem>
 								<Link
-									to={routes.products.path}
-									className="text-base xl:text-lg"
+										to={routes.products.path}
+										className="text-xs md:text-sm xl:text-base"
 								>
 									<BreadcrumbLink className="font-medium hover:text-skyblue transition-all duration-300">
 										Products
 									</BreadcrumbLink>
 								</Link>
 							</BreadcrumbItem>
-							<BreadcrumbSeparator className="font-medium" />
+								<BreadcrumbSeparator className="font-medium text-xs md:text-sm xl:text-base" />
 							<BreadcrumbItem>
 								<Link
-									to={`${routes.products.path}/${product?.slug}`}
-									className="text-base xl:text-lg"
+										to={`${routes.products.path}/${product?.slug}`}
+										className="text-xs md:text-sm xl:text-base"
 								>
 									<BreadcrumbLink className="font-medium hover:text-skyblue transition-all duration-300">
 										{product?.name} {/* Changed from product?.slug */}
@@ -436,34 +436,34 @@ const Product = () => {
 				)}
 
 				{!loading && (
-					<h3 className="text-2xl xl:text-3xl font-semibold">
+					<h3 className="text-xl md:text-2xl xl:text-3xl font-semibold">
 						{product?.name}
 					</h3>
 				)}
 				{loading && <Skeleton className="h-9 w-2/3 max-w-md mb-4" />}
 
-				<div className="w-full pt-2 flex items-start flex-wrap gap-4">
-					<div className="py-2 flex items-start xl:items-center justify-start gap-4 flex-col xl:flex-row flex-wrap xl:flex-nowrap">
+				<div className="w-full pt-2 flex items-center flex-wrap gap-3">
+					<div className="py-2 flex items-center justify-start gap-3 flex-row flex-wrap xl:flex-nowrap">
 						{!loading && product && (
 							<>
-								<h5 className="min-w-fit text-base xl:text-lg font-medium">
+								<h5 className="min-w-fit text-xs md:text-base xl:text-lg font-medium">
 									Product SKU:
 								</h5>
-								<div className="w-full flex items-start justify-start gap-2 flex-wrap xl:w-auto">
-									<Badge>{product?.sku}</Badge>
+								<div className="w-auto flex items-center justify-start gap-1 flex-nowrap">
+									<Badge className="leading-none text-[10px] px-1.5 py-0.5 md:text-xs md:px-2 md:py-0.5 rounded-sm">{product?.sku}</Badge>
 								</div>
 
 								{product?.tags && product.tags.length > 0 && (
-									<div className="w-full xl:w-auto flex items-center gap-2 flex-wrap">
-										<span className="min-w-fit text-base xl:text-lg font-medium flex items-center gap-1">
-											<TagIcon size={16} className="text-[#2E57A5]" />
+									<div className="w-full xl:w-auto flex items-center gap-1 md:gap-2 flex-nowrap">
+										<span className="flex-none whitespace-nowrap text-xs md:text-base xl:text-lg font-medium flex items-center gap-1">
+											<TagIcon className="text-[#2E57A5] w-3 h-3 md:w-4 md:h-4" />
 											Tags:
 										</span>
-										<div className="flex items-center gap-2 flex-wrap">
+										<div className="flex-1 min-w-0 flex items-center gap-1 md:gap-2 flex-wrap">
 											{product.tags.map((t) => (
 												<span
 													key={t.tagId}
-													className="rounded-md border px-3 py-1 text-sm font-medium bg-[#E8F2FF] border-[#2E57A5] text-[#2E57A5]"
+													className="rounded-sm border px-1.5 py-0.5 text-[11px] md:px-2 md:py-0.5 md:text-xs leading-none font-medium bg-[#E8F2FF] border-[#2E57A5] text-[#2E57A5]"
 												>
 													{t.tag}
 												</span>
@@ -695,7 +695,7 @@ const Product = () => {
 										{!loading && product && (
 											<>
 												{/* Displaying effective base price per unit */}
-												<h3 className="text-2xl xl:text-4xl font-semibold">
+												<h3 className="text-xl md:text-2xl xl:text-4xl font-semibold">
 													{currencySymbol}{" "}
 													{formatPrice(
 														product.basePrice +
@@ -725,7 +725,7 @@ const Product = () => {
 								{product && product.variations.length > 0 && (
 									<div className="py-2">
 										{!loading && (
-											<h4 className="text-base xl:text-xl font-medium">
+											<h4 className="text-sm md:text-base xl:text-xl font-medium">
 												Variation
 											</h4>
 										)}
@@ -733,7 +733,7 @@ const Product = () => {
 										{loading && <Skeleton className="h-7 w-28 mb-4" />}
 										<div className="w-full flex items-center justify-between py-2">
 											{!loading && (
-												<p className="text-sm xl:text-base font-semibold">
+												<p className="text-xs md:text-sm xl:text-base font-semibold">
 													Total options:{" "}
 													{product.variations.map((productVariation, index) => (
 														<span key={index} className="font-bold">
@@ -756,7 +756,7 @@ const Product = () => {
 													key={productVariation.variationId}
 													className="w-full py-2 flex items-start justify-center gap-2 flex-col flex-wrap"
 												>
-													<h5 className="text-base xl:text-lg font-medium">
+													<h5 className="text-sm md:text-base xl:text-lg font-medium">
 														Step {index + 1}:{" "}
 														<span className="font-normal">
 															Select {productVariation?.name}
@@ -817,7 +817,7 @@ const Product = () => {
 										{product.pricingType === "square-feet" && (
 											<div className="flex flex-col gap-4 items-start py-2 pb-3">
 												<div className="w-full flex gap-4 items-start justify-between py-2 pb-3">
-													<h5 className="flex-1 text-sm xl:text-lg font-medium">
+													<h5 className="flex-1 text-xs md:text-sm xl:text-lg font-medium">
 														Step {product.variations.length + 1}:{" "}
 														<span className="font-normal">
 															Select Size Dimension <br /> (Width × Height)
@@ -909,7 +909,7 @@ const Product = () => {
 													</div>
 
 													{/* Calculated area */}
-													<div className="flex items-center gap-2 text-sm bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 w-full sm:w-auto mt-1">
+													<div className="flex items-center gap-2 text-xs md:text-sm bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 w-full sm:w-auto mt-1">
 														<span className="text-muted-foreground">=</span>
 														<span className="font-medium">{sqFeet} sq. ft</span>
 													</div>
@@ -922,7 +922,7 @@ const Product = () => {
 										<div className="flex items-center space-x-4 py-2 pb-3">
 											{!loading && (
 												<>
-													<h5 className="text-sm xl:text-lg font-medium">
+													<h5 className="text-xs md:text-sm xl:text-lg font-medium">
 														Step{" "}
 														{product.pricingType === "flat"
 															? product.variations.length + 1
@@ -983,10 +983,10 @@ const Product = () => {
 									{/* Unit Price now includes additional variant price */}
 									{!loading && product && (
 										<div className="w-full flex items-center justify-between flex-wrap">
-											<span className="text-base xl:text-lg font-medium">
+											<span className="text-sm md:text-base xl:text-lg font-medium">
 												Unit Price {currencyCode}
 											</span>
-											<span className="text-xl font-medium">
+											<span className="text-lg md:text-xl font-medium">
 												{currencySymbol}{" "}
 												{formatPrice(
 													product.basePrice +
@@ -1035,10 +1035,10 @@ const Product = () => {
 									<div className="w-full flex items-center justify-between flex-wrap">
 										{!loading && product && (
 											<>
-												<span className="text-base xl:text-lg font-medium">
+												<span className="text-sm md:text-base xl:text-lg font-medium">
 													Discount %
 												</span>
-												<span className="text-xl font-medium">
+												<span className="text-lg md:text-xl font-medium">
 													{discountPercentage}%
 												</span>
 											</>
@@ -1053,10 +1053,10 @@ const Product = () => {
 
 									{!loading && product && (
 										<div className="w-full flex items-center justify-between flex-wrap">
-											<span className="text-base xl:text-lg font-medium">
+											<span className="text-sm md:text-base xl:text-lg font-medium">
 												Design Charge {currencyCode}
 											</span>
-											<span className="text-xl font-medium">
+											<span className="text-lg md:text-xl font-medium">
 												{currencySymbol} {formatPrice(designCharge)}
 											</span>
 										</div>
@@ -1064,10 +1064,10 @@ const Product = () => {
 
 									{!loading && product && (
 										<div className="w-full flex items-center justify-between flex-wrap pt-3 mt-3 border-t-[3px] border-gray/30">
-											<span className="text-base xl:text-lg font-medium">
+											<span className="text-sm md:text-base xl:text-lg font-medium">
 												Total Price {currencyCode}
 											</span>
-											<span className="text-xl font-medium">
+											<span className="text-lg md:text-xl font-medium">
 												{currencySymbol} {formatPrice(totalPrice)}
 											</span>
 
@@ -1083,9 +1083,9 @@ const Product = () => {
 
 							<CardFooter className="flex items-start justify-start gap-4">
 								{!loading && product && (
-									<div className="w-full flex gap-1 xl:gap-3 items-center">
+									<div className="w-full flex flex-wrap md:flex-nowrap gap-2 md:gap-3 items-center">
 										<Button
-											className="w-36 text-sm lg:text-lg lg:w-44 xl:text-xl xl:w-60"
+											className="w-full sm:w-auto text-xs sm:text-sm lg:text-lg xl:text-xl"
 													onClick={async () => {
 													await handleAddToCart();
 													navigate(routes.checkout.path);
@@ -1101,13 +1101,10 @@ const Product = () => {
 												(product?.pricingType === "square-feet" && (width === 0 || height === 0))
 											}
 										>
-											{product?.pricingType === "square-feet" && (width === 0 || height === 0)
-												? "Please add dimensions"
-												: "Send Order Request"
-											}
+											{"Send Order Request"}
 										</Button>
 										<Button
-											className="w-30 text-sm lg:text-lg lg:w-40 xl:text-xl xl:w-52"
+											className="w-full sm:w-auto text-xs sm:text-sm lg:text-lg xl:text-xl"
 											onClick={handleAddToCart}
 											disabled={
 												!matchedVariant || 
@@ -1115,10 +1112,7 @@ const Product = () => {
 											}
 											variant="secondary"
 										>
-											{product?.pricingType === "square-feet" && (width === 0 || height === 0)
-												? "Please add dimensions"
-												: "Add to Cart"
-											}
+											{"Add to Cart"}
 										</Button>
 									</div>
 								)}
@@ -1129,7 +1123,7 @@ const Product = () => {
 				</div>
 
 				{/* Product Description and Reviews: separate block to control mobile order */}
-				<div className="order-3 w-full xl:col-span-7 mt-0 xl:hidden">
+				<div className="order-3 w-full xl:col-span-7 mt-6 xl:hidden">
 					{/* Product Attributes */}
 					{!loading && product && <ProductAttributes product={product} />}
 					{loading &&
@@ -1204,7 +1198,7 @@ const Product = () => {
 			{/* related products */}
 			<div className="row py-1 space-y-8">
 				<div className="py-1">
-					<h2 className="w-full text-center text-3xl lg:text-4xl font-semibold py-4 relative after:content-[''] after:absolute after:w-20 after:h-[0.3rem] after:rounded-full after:bg-skyblue after:left-[50%] after:-translate-x-1/2 after:-bottom-1 after:transition-all after:duration-300">
+					<h2 className="w-full text-center text-2xl md:text-3xl lg:text-4xl font-semibold py-4 relative after:content-[''] after:absolute after:w-20 after:h-[0.3rem] after:rounded-full after:bg-skyblue after:left-[50%] after:-translate-x-1/2 after:-bottom-1 after:transition-all after:duration-300">
 						Related Products
 					</h2>
 				</div>
