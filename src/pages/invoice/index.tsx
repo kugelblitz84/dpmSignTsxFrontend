@@ -58,17 +58,35 @@ const Invoice = () => {
   const invoiceData = useMemo(() => {
     if (!order) return null;
     const agentInfo = staff.find((s) => s.staffId === order.staffId) || null;
-    const subTotal = (order.orderItems || []).reduce(
-      (sum, it) => sum + Number(it.price || 0) * Number(it.quantity || 0),
-      0
-    );
-    const discountAmount = 0;
-    const designCharge = Number(agentInfo?.designCharge ?? 0);
+    // Compute item-level pricing using optional breakdown fields; fallback to price
+    const lineTotals = (order.orderItems || []).map((it) => {
+      const qty = Math.max(1, Number(it.quantity || 0));
+      const unitBase = Number(it.unitPrice ?? it.product?.basePrice ?? 0);
+      const addl = Number(it.additionalPrice ?? it.productVariant?.additionalPrice ?? 0);
+      const effUnit = unitBase + addl;
+      const discountPct = Number(it.discountPercentage ?? 0);
+      const perItemDesign = Number(it.designCharge ?? 0);
+      // If backend already persisted final line total in it.price, prefer that
+      const computed = Math.round((effUnit * qty) * (1 - discountPct / 100) + perItemDesign);
+      const finalLine = Number(it.price ?? 0) || computed;
+      // Admin-style item discount uses qty only
+      const itemDiscount = (effUnit * qty) * (discountPct / 100);
+      return { qty, unitBase, addl, discountPct, perItemDesign, finalLine, itemDiscount };
+    });
+    const subTotal = lineTotals.reduce((s, l) => s + l.finalLine, 0);
+    // Aggregate summary using quantity (admin logic)
+    const totalUnitBase = lineTotals.reduce((s, l) => s + l.unitBase * l.qty, 0);
+    const totalAdditional = lineTotals.reduce((s, l) => s + l.addl * l.qty, 0);
+    const totalDesignCharge = lineTotals.reduce((s, l) => s + l.perItemDesign, 0);
+    const itemDiscountTotal = lineTotals.reduce((s, l) => s + l.itemDiscount, 0);
+    const discountAmount = Math.ceil(Math.max(0, itemDiscountTotal));
+    const designCharge = totalDesignCharge; // per items sum
     const installationCharge = 0;
     const paidTotal = (order.payments || [])
       .filter((p) => p.isPaid)
       .reduce((a, p) => a + Number(p.amount || 0), 0);
-    const grandTotal = subTotal + designCharge + installationCharge - discountAmount;
+    // Public site: use backend's orderTotalPrice as final grand total (includes coupon adjustments)
+    const grandTotal = Number(order.orderTotalPrice ?? subTotal);
     const amountDue = Math.max(0, grandTotal - paidTotal);
     return {
       order,
@@ -79,6 +97,9 @@ const Invoice = () => {
       installationCharge,
       grandTotal,
       amountDue,
+      totalUnitBase,
+      totalAdditional,
+      itemDiscountTotal,
     };
   }, [order, staff]);
 
@@ -230,7 +251,7 @@ const Invoice = () => {
 
   if (!invoiceData) return <Preloader />;
 
-  const { order: currentOrder, agentInfo, subTotal, discountAmount, designCharge, grandTotal, amountDue } = invoiceData;
+  const { order: currentOrder, agentInfo, designCharge, grandTotal, amountDue, totalUnitBase, totalAdditional, itemDiscountTotal } = invoiceData;
 
   const courierName = currentOrder.courierId
     ? couriers.find((c) => c.courierId === currentOrder.courierId)?.name || "N/A"
@@ -307,37 +328,47 @@ const Invoice = () => {
                 <tr className="bg-[#3871C2] text-white print-bg">
                   <th className="border border-blue-700 p-2 text-center w-[5%]">NO</th>
                   <th className="border border-blue-700 p-2 text-left w-[40%]">DESCRIPTION</th>
-                  <th className="border border-blue-700 p-2 text-center w-[15%]">QTY/SQ. FT.</th>
-                  <th className="border border-blue-700 p-2 text-center w-[20%]">PRICE</th>
+                  <th className="border border-blue-700 p-2 text-center w-[17%]">QTY / SQ,FT</th>
+                  <th className="border border-blue-700 p-2 text-center w-[18%]">UNIT PRICE (discounted)</th>
                   <th className="border border-blue-700 p-2 text-center w-[20%]">TOTAL</th>
                 </tr>
               </thead>
               <tbody>
-                {currentOrder.orderItems.map((orderItem: OrderItemProps, index: number) => (
-                  <tr key={orderItem.orderItemId} className={index % 2 === 0 ? "bg-white" : "bg-blue-100"}>
-                    <td className="border border-gray-300 p-2 text-center">{index + 1}</td>
-                    <td className="border border-gray-300 p-2 whitespace-normal break-words">
-                      <span className="font-semibold">{orderItem?.product?.name}</span>
-                      <br />
-                      <span className="text-xs text-gray-600">
-                        {orderItem?.productVariant?.variantDetails.map((detail: any) => (
-                          <span key={detail.productVariantDetailId} className="mr-2">
-                            {detail.variationItem.variation.name}: {detail.variationItem.value} {detail.variationItem.variation.unit}
-                          </span>
-                        ))}{" "}
-                        {orderItem.widthInch && orderItem.heightInch && (
-                          <span className="text-xs text-gray-600">({orderItem.widthInch} inch x {orderItem.heightInch} inch)</span>
-                        )}
-                      </span>
-                    </td>
-                    <td className="border border-gray-300 p-2 text-center">
-                      {orderItem.quantity} {orderItem.quantity > 1 ? "pieces" : "piece"}
-                      {orderItem.size ? ` (${orderItem.size.toLocaleString()} sq.ft)` : ""}
-                    </td>
-                    <td className="border border-gray-300 p-2 text-center">{Number(orderItem.price).toLocaleString()} {currencyCode}</td>
-                    <td className="border border-gray-300 p-2 text-center">{(Number(orderItem.price) * orderItem.quantity).toLocaleString()} {currencyCode}</td>
-                  </tr>
-                ))}
+                {currentOrder.orderItems.map((orderItem: OrderItemProps, index: number) => {
+                  const qty = Number(orderItem.quantity || 0);
+                  const unitBase = Number(orderItem.unitPrice ?? orderItem.product?.basePrice ?? 0);
+                  const addl = Number(orderItem.additionalPrice ?? orderItem.productVariant?.additionalPrice ?? 0);
+                  const discountPct = Number(orderItem.discountPercentage ?? 0);
+                  const effUnit = (unitBase + addl) * (1 - discountPct / 100);
+                  // If backend persisted a per-unit discounted price somewhere else, we don't have it; we compute
+                  const unitDisplay = effUnit;
+                  const lineTotal = Number(orderItem.price ?? 0) || Math.round(effUnit * qty + Number(orderItem.designCharge ?? 0));
+                  return (
+                    <tr key={orderItem.orderItemId} className={index % 2 === 0 ? "bg-white" : "bg-blue-100"}>
+                      <td className="border border-gray-300 p-2 text-center">{index + 1}</td>
+                      <td className="border border-gray-300 p-2 whitespace-normal break-words">
+                        <span className="font-semibold">{orderItem?.product?.name}</span>
+                        <br />
+                        <span className="text-xs text-gray-600">
+                          {orderItem?.productVariant?.variantDetails.map((detail: any) => (
+                            <span key={detail.productVariantDetailId} className="mr-2">
+                              {detail.variationItem.variation.name}: {detail.variationItem.value} {detail.variationItem.variation.unit}
+                            </span>
+                          ))}{" "}
+                          {orderItem.widthInch && orderItem.heightInch && (
+                            <span className="text-xs text-gray-600">({orderItem.widthInch} inch x {orderItem.heightInch} inch)</span>
+                          )}
+                        </span>
+                      </td>
+                      <td className="border border-gray-300 p-2 text-center">
+                        {qty} {qty > 1 ? "pcs" : "pc"}
+                        {orderItem.size ? ` (${orderItem.size.toLocaleString()} sq.ft)` : ""}
+                      </td>
+                      <td className="border border-gray-300 p-2 text-center">{unitDisplay.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {currencyCode}</td>
+                      <td className="border border-gray-300 p-2 text-center">{lineTotal.toLocaleString()} {currencyCode}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -349,21 +380,21 @@ const Invoice = () => {
                 <col style={{ width: "40%" }} />
               </colgroup>
               <tbody>
-                <tr className="bg-gray-50">
-                  <td className="px-3 py-2 text-right font-bold whitespace-nowrap align-middle">Sub Total:</td>
-                  <td className="px-3 py-2 text-right whitespace-nowrap align-middle">{subTotal.toLocaleString()} {currencyCode}</td>
+                <tr className="bg-white">
+                  <td className="px-3 py-2 text-right font-bold whitespace-nowrap align-middle">Unit Base:</td>
+                  <td className="px-3 py-2 text-right whitespace-nowrap align-middle">{totalUnitBase.toLocaleString()} {currencyCode}</td>
+                </tr>
+                <tr className="bg-white">
+                  <td className="px-3 py-2 text-right font-bold whitespace-nowrap align-middle">Additional:</td>
+                  <td className="px-3 py-2 text-right whitespace-nowrap align-middle">{totalAdditional.toLocaleString()} {currencyCode}</td>
                 </tr>
                 <tr className="bg-white">
                   <td className="px-3 py-2 text-right font-bold whitespace-nowrap align-middle">Design Charge:</td>
                   <td className="px-3 py-2 text-right whitespace-nowrap align-middle">{designCharge.toLocaleString()} {currencyCode}</td>
                 </tr>
-                <tr className="bg-gray-50">
-                  {/* <td className="px-3 py-2 text-right font-bold whitespace-nowrap align-middle">Installation Charge:</td>
-                  <td className="px-3 py-2 text-right whitespace-nowrap align-middle">{installationCharge.toLocaleString()} {currencyCode}</td> */}
-                </tr>
                 <tr className="bg-white">
                   <td className="px-3 py-2 text-right font-bold whitespace-nowrap align-middle">Discount:</td>
-                  <td className="px-3 py-2 text-right whitespace-nowrap align-middle">{discountAmount.toLocaleString()} {currencyCode}</td>
+                  <td className="px-3 py-2 text-right whitespace-nowrap align-middle">{Math.ceil(itemDiscountTotal).toLocaleString()} {currencyCode}</td>
                 </tr>
                 <tr className="bg-[#3871C2] text-white font-bold print-bg">
                   <td className="border border-blue-700 px-2 py-1 text-right align-middle">

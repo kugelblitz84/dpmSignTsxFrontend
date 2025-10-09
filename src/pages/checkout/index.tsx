@@ -132,10 +132,8 @@ const Checkout = () => {
 	const [staff, setStaff] = useState<StaffProps[]>([]);
 	const [couponCode, setCouponCode] = useState<string>("");
 	// Derive subtotal from cart items so it stays in sync for guests and auth users
-	const subtotal = cartItems.reduce(
-		(acc, item) => acc + Number(item?.price || 0),
-		0
-	);
+	// Subtotal uses each cart line total (already a line price)
+	const subtotal = cartItems.reduce((acc, item) => acc + Number(item?.price || 0), 0);
 	const [total, setTotal] = useState<number>(subtotal);
 	const [discountApplied, setDiscountApplied] = useState<boolean>(false);
 	const [isAgreeTerms, setIsAgreeTerms] = useState<boolean>(false);
@@ -445,23 +443,51 @@ const Checkout = () => {
 				setRequestOrderLoading.open();
 
 				// Build order items robustly: prefer current cartItems; fallback to guestCart snapshot
-				let orderItems = cartItems.map(({
-					productId,
-					productVariantId,
-					quantity,
-					size,
-					widthInch,
-					heightInch,
-					price,
-				}) => ({
-					productId,
-					productVariantId,
-					quantity,
-					size,
-					widthInch,
-					heightInch,
-					price,
-				}));
+				let orderItems = cartItems.map(({ productId, productVariantId, quantity, size, widthInch, heightInch, price, product, productVariant }) => {
+					const unitPrice = Number(product?.basePrice ?? 0) || 0;
+					const additionalPrice = Number(productVariant?.additionalPrice ?? 0) || 0;
+					const effUnit = unitPrice + additionalPrice;
+					const qty = Number(quantity || 0);
+					const isSqft = product?.pricingType === "square-feet";
+					const sz = Number(size || 0);
+					const basis = isSqft && sz ? sz * qty : qty;
+					// Initial discount by product rules
+					let discountPct = 0;
+					const maxDiscount = Number(product?.discountPercentage ?? 0) || 0;
+					const discountStart = product?.discountStart ?? null;
+					const discountEnd = product?.discountEnd ?? null;
+					if (maxDiscount > 0 && discountStart !== null && discountEnd !== null && basis >= discountStart) {
+						if (basis <= discountEnd) {
+							const rangeLength = (discountEnd - discountStart + 1) || 1;
+							const stepIndex = basis - discountStart + 1;
+							discountPct = Number(((maxDiscount * stepIndex) / rangeLength).toFixed(2));
+						} else {
+							discountPct = Number(maxDiscount.toFixed(2));
+						}
+					}
+					// Apply design charge rule first (based on discounted subtotal per UI logic)
+					const discountedSubtotal = Math.floor((basis * effUnit) * (1 - discountPct / 100));
+					const designChargeByRule = discountedSubtotal > 1000 ? 0 : (unitPrice > 0 && unitPrice < 1000 ? 250 : 0);
+					// Reconcile any remaining delta (e.g., coupons) into discountPercentage, not into designCharge
+					const linePrice = Number(price || 0);
+					const undiscountedWithDesign = (basis * effUnit) + designChargeByRule;
+					const requiredDiscountAmount = Math.max(0, Math.round(undiscountedWithDesign - linePrice));
+					const requiredDiscountPct = (basis * effUnit) > 0 ? (requiredDiscountAmount / (basis * effUnit)) * 100 : 0;
+					const finalDiscountPct = Math.min(100, Number((discountPct + requiredDiscountPct).toFixed(2)));
+					return {
+						productId,
+						productVariantId,
+						quantity,
+						size,
+						widthInch,
+						heightInch,
+						unitPrice,
+						additionalPrice,
+						discountPercentage: finalDiscountPct,
+						designCharge: designChargeByRule,
+						price: linePrice,
+					};
+				});
 				if (!orderItems.length) {
 					const guest = localStorage.getItem("guestCart");
 					if (guest) {
@@ -482,7 +508,45 @@ const Checkout = () => {
 								size: g.size ?? null,
 								widthInch: g.widthInch ?? null,
 								heightInch: g.heightInch ?? null,
-								price: Number(g.price),
+								// Include optional pricing breakdown based on guest snapshot fields if available
+								// Recompute breakdown for guest items similarly to ensure consistency
+								...(() => {
+									const product = (g as any).product;
+									const productVariant = (g as any).productVariant;
+									const unitPrice = Number((g as any).unitPrice ?? product?.basePrice ?? 0) || 0;
+									const additionalPrice = Number((g as any).additionalPrice ?? productVariant?.additionalPrice ?? 0) || 0;
+									const effUnit = unitPrice + additionalPrice;
+									const qty = Number(g.quantity || 0);
+									const sizeVal = Number((g as any).size || 0) || 0;
+									const basis = (product?.pricingType === "square-feet" && sizeVal) ? Number(sizeVal) * qty : qty;
+									let discountPct = 0;
+									const maxDiscount = Number(product?.discountPercentage ?? 0) || 0;
+									const discountStart = product?.discountStart ?? null;
+									const discountEnd = product?.discountEnd ?? null;
+									if (maxDiscount > 0 && discountStart !== null && discountEnd !== null && basis >= discountStart) {
+										if (basis <= discountEnd) {
+											const rangeLength = (discountEnd - discountStart + 1) || 1;
+											const stepIndex = basis - discountStart + 1;
+											discountPct = Number(((maxDiscount * stepIndex) / rangeLength).toFixed(2));
+										} else {
+											discountPct = Number(maxDiscount.toFixed(2));
+										}
+									}
+									const discountedSubtotal = Math.floor((basis * effUnit) * (1 - discountPct / 100));
+									const designChargeByRule = discountedSubtotal > 1000 ? 0 : (unitPrice > 0 && unitPrice < 1000 ? 250 : 0);
+									const linePrice = Number(g.price);
+									const undiscountedWithDesign = (basis * effUnit) + designChargeByRule;
+									const requiredDiscountAmount = Math.max(0, Math.round(undiscountedWithDesign - linePrice));
+									const requiredDiscountPct = (basis * effUnit) > 0 ? (requiredDiscountAmount / (basis * effUnit)) * 100 : 0;
+									const finalDiscountPct = Math.min(100, Number((discountPct + requiredDiscountPct).toFixed(2)));
+									return {
+										unitPrice,
+										additionalPrice,
+										discountPercentage: finalDiscountPct,
+										designCharge: designChargeByRule,
+										price: linePrice,
+									};
+								})(),
 							}));
 						} catch {}
 					}

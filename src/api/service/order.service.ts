@@ -123,6 +123,11 @@ class Order {
 			size: number | null;
 			widthInch: number | null;
 			heightInch: number | null;
+			// pricing breakdown fields (optional)
+			unitPrice?: number | null;
+			additionalPrice?: number | null;
+			discountPercentage?: number | null;
+			designCharge?: number | null;
 			price: number;
 		}[],
 		extraFields?: Record<string, any>
@@ -148,6 +153,11 @@ class Order {
 			size: number | null;
 			widthInch: number | null;
 			heightInch: number | null;
+			// pricing breakdown fields (optional)
+			unitPrice?: number | null;
+			additionalPrice?: number | null;
+			discountPercentage?: number | null;
+			designCharge?: number | null;
 			price: number;
 		}[],
 		extraFields?: Record<string, any>
@@ -176,6 +186,11 @@ class Order {
 					size: number | null;
 					widthInch: number | null;
 					heightInch: number | null;
+					// pricing breakdown fields (optional)
+					unitPrice?: number | null;
+					additionalPrice?: number | null;
+					discountPercentage?: number | null;
+					designCharge?: number | null;
 					price: number;
 				}[],
 		arg14?: {
@@ -185,6 +200,11 @@ class Order {
 			size: number | null;
 			widthInch: number | null;
 			heightInch: number | null;
+			// pricing breakdown fields (optional)
+			unitPrice?: number | null;
+			additionalPrice?: number | null;
+			discountPercentage?: number | null;
+			designCharge?: number | null;
 			price: number;
 		}[],
 		extraFields?: Record<string, any>

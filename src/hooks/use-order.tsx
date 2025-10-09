@@ -89,7 +89,12 @@ export interface OrderItemProps {
 	orderId: number;
 	productId: number;
 	quantity: number;
-	price: number;
+	// pricing breakdown (new, optional on legacy)
+	unitPrice?: number | null; // base unit price
+	additionalPrice?: number | null; // variant/add-on per unit
+	discountPercentage?: number | null; // applied percentage [0..100]
+	designCharge?: number | null; // per-item fixed design charge
+	price: number; // final line total (after adjustments)
 	size: number | null;
 	widthInch: number | null;
 	heightInch: number | null;
