@@ -392,6 +392,14 @@ p {
 
 /* ======= Print styles (A4 multi-page) ======= */
 @media print {
+  /* Print only the invoice: keep #invoicePrintArea, its ancestors, and its descendants visible */
+  body *:not(#invoicePrintArea):not(#invoicePrintArea *):not(:has(#invoicePrintArea)) {
+    display: none !important;
+  }
+  /* Do not hide ancestors; rely on page wrappers inside the invoice to paginate */
+  #invoicePrintArea { margin: 0 auto !important; padding: 0 !important; }
+  /* Avoid hiding ancestors to prevent blank page; rely on page wrappers for isolation */
+
   @page {
     size: A4 portrait;
     margin: 8mm; /* small uniform margin to avoid printer clipping */
@@ -406,28 +414,28 @@ p {
     print-color-adjust: exact;
   }
 
-  /* Print isolation: only show the invoice area */
-  body * { visibility: hidden !important; }
-  #invoicePrintArea, #invoicePrintArea * { visibility: visible !important; }
-  /* keep natural flow so multiple pages render; no absolute positioning */
-  #invoicePrintArea { position: static !important; margin: 0 auto; }
+  /* Avoid isolation via visibility which keeps layout space and can create blank pages */
+  /* Let the page flow naturally and rely on page wrappers */
 
   /* Each .invoice-a4 is one printed page */
   .invoice-a4 {
     width: 210mm !important;
     min-height: 297mm !important;
     height: 297mm !important;
-    padding: 6mm 8mm !important; /* compact vertical padding for print */
+    padding: 0 !important; /* prevent padding from inflating page height */
     page-break-inside: avoid;
     break-inside: avoid;
     margin: 0 auto;
   }
 
-  /* Force a new printed page after each wrapper except the last */
-  .invoice-a4:not(:last-child) {
-    page-break-after: always;
-    break-after: page;
+  /* Insert page breaks only between consecutive invoice pages */
+  .invoice-a4 + .invoice-a4 {
+    page-break-before: always;
+    break-before: page;
   }
+
+  /* Avoid accidental page breaks from outer wrappers */
+  #invoicePrintArea { page-break-inside: auto; break-inside: auto; }
 
   .avoid-page-break {
     page-break-inside: avoid;

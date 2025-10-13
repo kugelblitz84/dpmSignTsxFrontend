@@ -165,7 +165,7 @@ const Invoice = () => {
   );
 
   return (
-    <div className="w-full h-full flex flex-col gap-8 pt-5">
+  <div className="w-full h-full flex flex-col gap-8 pt-5 print:h-auto print:gap-0 print:pt-0">
       <div className="w-full flex items-center justify-center gap-4 mb-4 print:hidden">
         <Button onClick={handlePrint} variant="outline" className="flex items-center gap-2">
           <Printer className="h-4 w-4" />
@@ -178,9 +178,9 @@ const Invoice = () => {
           const isFirst = pageIndex === 0;
           const isLast = pageIndex === pages.length - 1;
           return (
-            <div key={pageIndex} className="invoice-a4 bg-white p-4 font-sans text-black flex flex-col justify-between" ref={isLast ? lastPageRef : undefined}>
+            <div key={pageIndex} className="invoice-a4 bg-white font-sans text-black flex flex-col justify-between" ref={isLast ? lastPageRef : undefined}>
               <Header />
-              <div className="flex-1 py-3">
+              <div className="flex-1 py-2 px-3">
                 {isFirst && (
                   <div className="w-full h-auto mb-6 flex font-medium">
                     <div className="flex-1 pt-2 px-3">
@@ -201,7 +201,7 @@ const Invoice = () => {
                   </div>
                 )}
 
-                <div className="w-full h-auto mb-3">
+                <div className="w-full h-auto mb-2">
                   <h3 className="text-sm font-bold mb-1 text-gray-800">Order Details</h3>
                   <table className="w-full table-auto border-collapse text-sm">
                     <thead>
@@ -322,9 +322,9 @@ const Invoice = () => {
           );
         })}
         {splitPaymentToNewPage && currentOrder.payments.length > 0 && (
-          <div className="invoice-a4 bg-white p-4 font-sans text-black flex flex-col justify-between">
+          <div className="invoice-a4 bg-white font-sans text-black flex flex-col justify-between">
             <Header />
-            <div className="flex-1 py-3">
+            <div className="flex-1 py-2 px-3">
               <h3 className="text-base font-bold mb-2 text-gray-800">Payment Details</h3>
               <table className="w-full table-auto border-collapse text-sm">
                 <thead>
