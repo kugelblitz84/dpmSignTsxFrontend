@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Printer, Download } from "lucide-react";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
+import { Printer } from "lucide-react";
 
 import { currencyCode } from "@/config";
 import { OrderItemProps, OrderProps, useOrders } from "@/hooks/use-order";
@@ -23,14 +21,21 @@ const Invoice = () => {
   const [staff, setStaff] = useState<StaffProps[]>([]);
   const [couriers, setCouriers] = useState<CourierProps[]>([]);
   const printRef = useRef<HTMLDivElement | null>(null);
-  const [downloading, setDownloading] = useState(false);
+  const lastPageRef = useRef<HTMLDivElement | null>(null);
+  const [splitPaymentToNewPage, setSplitPaymentToNewPage] = useState(false);
 
   const handlePrint = () => {
     if (!printRef.current) return;
-    setTimeout(() => window.print(), 50);
+    const prevTitle = document.title;
+    document.title = `DPM-${orderId}`;
+    const restore = () => {
+      document.title = prevTitle;
+      window.removeEventListener("afterprint", restore);
+    };
+    window.addEventListener("afterprint", restore);
+    setTimeout(() => window.print(), 30);
   };
 
-  // Fetch support data (staff, couriers) for labels and charges
   useEffect(() => {
     const fetchAll = async () => {
       try {
@@ -40,457 +45,311 @@ const Invoice = () => {
         ]);
         setStaff((staffRes?.data?.staff || []).filter((s: StaffProps) => !s.isDeleted));
         setCouriers(courierRes?.data?.couriers || []);
-      } catch (e) {
-        // non-blocking
-        console.log("invoice fetchAll failed", e);
-      }
+      } catch (e) { console.log("invoice fetchAll failed", e); }
     };
     fetchAll();
   }, [token]);
 
-  // Select the current order from context by route param
   useEffect(() => {
     const found = orders.find((o) => String(o.orderId) === String(orderId));
     setOrder(found || null);
   }, [orders, orderId]);
 
-  // Compute totals and agent info
   const invoiceData = useMemo(() => {
     if (!order) return null;
     const agentInfo = staff.find((s) => s.staffId === order.staffId) || null;
-    // Compute item-level pricing using optional breakdown fields; fallback to price
-    const lineTotals = (order.orderItems || []).map((it) => {
-      const qty = Math.max(1, Number(it.quantity || 0));
-      const unitBase = Number(it.unitPrice ?? it.product?.basePrice ?? 0);
-      const addl = Number(it.additionalPrice ?? it.productVariant?.additionalPrice ?? 0);
-      const effUnit = unitBase + addl;
-      const discountPct = Number(it.discountPercentage ?? 0);
-      const perItemDesign = Number(it.designCharge ?? 0);
-      // If backend already persisted final line total in it.price, prefer that
-      const computed = Math.round((effUnit * qty) * (1 - discountPct / 100) + perItemDesign);
-      const finalLine = Number(it.price ?? 0) || computed;
-      // Admin-style item discount uses qty only
-      const itemDiscount = (effUnit * qty) * (discountPct / 100);
-      return { qty, unitBase, addl, discountPct, perItemDesign, finalLine, itemDiscount };
-    });
-    const subTotal = lineTotals.reduce((s, l) => s + l.finalLine, 0);
-    // Aggregate summary using quantity (admin logic)
-    const totalUnitBase = lineTotals.reduce((s, l) => s + l.unitBase * l.qty, 0);
-    const totalAdditional = lineTotals.reduce((s, l) => s + l.addl * l.qty, 0);
-    const totalDesignCharge = lineTotals.reduce((s, l) => s + l.perItemDesign, 0);
-    const itemDiscountTotal = lineTotals.reduce((s, l) => s + l.itemDiscount, 0);
-    const discountAmount = Math.ceil(Math.max(0, itemDiscountTotal));
-    const designCharge = totalDesignCharge; // per items sum
-    const installationCharge = 0;
-    const paidTotal = (order.payments || [])
-      .filter((p) => p.isPaid)
-      .reduce((a, p) => a + Number(p.amount || 0), 0);
-    // Public site: use backend's orderTotalPrice as final grand total (includes coupon adjustments)
-    const grandTotal = Number(order.orderTotalPrice ?? subTotal);
-    const amountDue = Math.max(0, grandTotal - paidTotal);
-    return {
-      order,
-      agentInfo,
-      subTotal,
-      discountAmount,
-      designCharge,
-      installationCharge,
-      grandTotal,
-      amountDue,
-      totalUnitBase,
-      totalAdditional,
-      itemDiscountTotal,
+    const toNum = (v: unknown) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : 0;
     };
+    const agg = (order.orderItems || []).reduce(
+      (acc, it) => {
+        const qty = Math.max(1, toNum(it.quantity));
+        const unit = toNum((it as any).unitPrice);
+        const addl = toNum((it as any).additionalPrice);
+        const discPct = toNum((it as any).discountPercentage);
+        const design = toNum((it as any).designCharge);
+        const unitBase = unit * qty;
+        const addlBase = addl * qty;
+        const discountAmt = (unit + addl) * qty * (discPct / 100);
+        return {
+          unitBaseTotal: acc.unitBaseTotal + unitBase,
+          additionalTotal: acc.additionalTotal + addlBase,
+          itemDiscountTotal: acc.itemDiscountTotal + discountAmt,
+          designChargeTotal: acc.designChargeTotal + design,
+        };
+      },
+      { unitBaseTotal: 0, additionalTotal: 0, itemDiscountTotal: 0, designChargeTotal: 0 }
+    );
+    const computedSubTotal = (order.orderItems || []).reduce((s, it) => s + Number(it.price || 0), 0);
+    const subTotal = computedSubTotal > 0 ? computedSubTotal : Number(order.orderTotalPrice || 0);
+    const grandTotal = Number(order.orderTotalPrice ?? subTotal);
+    const totalPaidAmount = (order.payments || []).reduce((acc, curr) => acc + ((curr.isPaid || curr.paymentMethod === "cod-payment") ? (Number(curr.amount) || 0) : 0), 0);
+    const amountDue = Math.max(0, grandTotal - totalPaidAmount);
+    return { order, agentInfo, subTotal, grandTotal, amountDue, priceDetails: agg };
   }, [order, staff]);
 
-  const handleDownloadPdf = async () => {
-    if (!printRef.current || downloading) return;
-    // Keep handles outside try so we can restore in finally
-    const element = printRef.current;
-    const prevStyle = {
-      width: element.style.width,
-      minHeight: element.style.minHeight,
-      height: element.style.height,
-      paddingBottom: element.style.paddingBottom,
-      paddingTop: element.style.paddingTop,
-      marginTop: element.style.marginTop,
-      marginBottom: element.style.marginBottom,
-    } as const;
-    const hadMinHScreenClass = element.classList.contains("min-h-screen");
-    const contentEl = document.getElementById("printContent") as HTMLElement | null;
-  const contentPrev = contentEl
-      ? {
-          minHeight: contentEl.style.minHeight,
-          height: contentEl.style.height,
-          paddingBottom: contentEl.style.paddingBottom,
-      display: contentEl.style.display,
-      flexDirection: (contentEl as HTMLElement).style.flexDirection,
-          marginTop: contentEl.style.marginTop,
-          marginBottom: contentEl.style.marginBottom,
-        }
-      : null;
-    const hadMinHFullClass = contentEl?.classList.contains("min-h-full");
-  const totalsTable = document.getElementById("totalsTable") as HTMLTableElement | null;
-  const prevTableLayout = totalsTable?.style.tableLayout ?? "";
-  const prevTableWidth = totalsTable?.style.width ?? "";
-  const grandRowCells = totalsTable?.rows?.[totalsTable.rows.length - 1]?.cells;
-  const prevGrandLeftWS = grandRowCells?.[0]?.style.whiteSpace ?? "";
-  const prevGrandRightWS = grandRowCells?.[1]?.style.whiteSpace ?? "";
-    try {
-      setDownloading(true);
-      // slight delay for fonts/images
-      await new Promise((r) => setTimeout(r, 20));
+  // Pagination helpers: 4 items per page. Must be declared before any early return to respect Rules of Hooks.
+  const itemsPerPage = 7; // match admin panel layout density
+  const pages: OrderItemProps[][] = useMemo(() => {
+    const items = order?.orderItems || [];
+    const res: OrderItemProps[][] = [];
+    for (let i = 0; i < items.length; i += itemsPerPage) res.push(items.slice(i, i + itemsPerPage));
+    return res.length ? res : [[]];
+  }, [order?.orderItems]);
 
-  // Prepare PDF page metrics early (used to size content before capture)
-  const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const pageHeight = pdf.internal.pageSize.getHeight();
-  const topMargin = 4; // mm small safety margin to keep header near top
-  const bottomMargin = 6; // mm safety margin
-  const safeHeight = Math.max(10, pageHeight - topMargin - bottomMargin);
-
-      // Normalize layout for pdf capture
-      if (hadMinHScreenClass) element.classList.remove("min-h-screen");
-  // Keep current width; do not force a fixed px width so totals box width matches preview
-      element.style.minHeight = "auto";
-      element.style.height = "auto";
-  element.style.paddingBottom = "0px";
-  element.style.paddingTop = "0px";
-      element.style.marginTop = "0px";
-      element.style.marginBottom = "0px";
-
-      if (contentEl) {
-        if (hadMinHFullClass) contentEl.classList.remove("min-h-full");
-        // Enforce a safe height equal to A4 minus margins to keep footer at bottom
-        contentEl.style.minHeight = `${safeHeight * 3.7795}px`; // mm -> px approx at 96dpi
-        contentEl.style.height = `${safeHeight * 3.7795}px`;
-        contentEl.style.display = "flex";
-        (contentEl as HTMLElement).style.flexDirection = "column";
-        contentEl.style.paddingBottom = "0px";
-        contentEl.style.marginTop = "0px";
-        contentEl.style.marginBottom = "0px";
-      }
-
-      if (totalsTable) {
-        totalsTable.style.tableLayout = "fixed"; // improve column alignment
-        // Lock to current rendered width so PDF matches preview
-        const currentWidth = totalsTable.offsetWidth;
-        if (currentWidth > 0) totalsTable.style.width = `${currentWidth}px`;
-        if (grandRowCells && grandRowCells.length >= 2) {
-          grandRowCells[0].style.whiteSpace = "nowrap";
-          grandRowCells[1].style.whiteSpace = "nowrap";
-        }
-      }
-
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-        scrollY: -window.scrollY,
-      });
-
-    const imgData = canvas.toDataURL("image/png");
-
-    // Map DOM pixels to PDF millimeters so sizes match print
-    const PX_TO_MM = 0.2645833333; // ~= 96dpi
-    let drawWidth = canvas.width * PX_TO_MM;
-    let drawHeight = canvas.height * PX_TO_MM;
-
-    // Scale down if it exceeds page bounds (keep aspect ratio)
-    const maxWidth = pageWidth; // full-bleed width within margins
-    const maxHeight = safeHeight; // within top/bottom margins
-    const scale = Math.min(maxWidth / drawWidth, maxHeight / drawHeight, 1);
-    drawWidth *= scale;
-    drawHeight *= scale;
-
-    // Center horizontally, top-align vertically (like print)
-    const xOffset = (pageWidth - drawWidth) / 2;
-    const yOffset = topMargin;
-    pdf.addImage(imgData, "PNG", xOffset, yOffset, drawWidth, drawHeight, undefined, "FAST");
-
-      const fileName = `Invoice-DPM-${orderId}.pdf`;
-      pdf.save(fileName);
-    } catch (err) {
-      // Non-blocking: fall back to print dialog if PDF fails
-      try { handlePrint(); } catch {}
-    } finally {
-      // restore
-      if (printRef.current) {
-        const el = printRef.current;
-        el.style.width = prevStyle.width;
-        el.style.minHeight = prevStyle.minHeight;
-        el.style.height = prevStyle.height;
-        el.style.paddingBottom = prevStyle.paddingBottom;
-  el.style.paddingTop = prevStyle.paddingTop;
-        el.style.marginTop = prevStyle.marginTop;
-        el.style.marginBottom = prevStyle.marginBottom;
-        if (hadMinHScreenClass) el.classList.add("min-h-screen");
-      }
-      if (contentEl && contentPrev) {
-        contentEl.style.minHeight = contentPrev.minHeight;
-        contentEl.style.height = contentPrev.height;
-        contentEl.style.paddingBottom = contentPrev.paddingBottom;
-        contentEl.style.display = contentPrev.display;
-        (contentEl as HTMLElement).style.flexDirection = contentPrev.flexDirection;
-        contentEl.style.marginTop = contentPrev.marginTop;
-        contentEl.style.marginBottom = contentPrev.marginBottom;
-        if (hadMinHFullClass) contentEl.classList.add("min-h-full");
-      }
-      if (totalsTable) {
-        totalsTable.style.tableLayout = prevTableLayout;
-        totalsTable.style.width = prevTableWidth;
-        if (grandRowCells && grandRowCells.length >= 2) {
-          grandRowCells[0].style.whiteSpace = prevGrandLeftWS;
-          grandRowCells[1].style.whiteSpace = prevGrandRightWS;
-        }
-      }
-      setDownloading(false);
-    }
-  };
+  // Measure to decide whether to move Payment section to a new page when it overflows last page
+  useEffect(() => {
+    setSplitPaymentToNewPage(false);
+    const t = setTimeout(() => {
+      if (!invoiceData) return;
+      const el = lastPageRef.current;
+      if (!el) return;
+      const A4_HEIGHT = 1123; // px
+      const tolerance = 2;
+      if (el.scrollHeight > A4_HEIGHT + tolerance) setSplitPaymentToNewPage(true);
+    }, 50);
+    return () => clearTimeout(t);
+  }, [orderId, order?.orderItems?.length, invoiceData?.grandTotal]);
 
   if (!invoiceData) return <Preloader />;
 
-  const { order: currentOrder, agentInfo, designCharge, grandTotal, amountDue, totalUnitBase, totalAdditional, itemDiscountTotal } = invoiceData;
+  const { order: currentOrder, agentInfo, subTotal, grandTotal, amountDue, priceDetails } = invoiceData;
 
-  const courierName = currentOrder.courierId
-    ? couriers.find((c) => c.courierId === currentOrder.courierId)?.name || "N/A"
-    : null;
+  const courierName = currentOrder.courierId ? (couriers.find((c) => c.courierId === currentOrder.courierId)?.name || "N/A") : null;
+
+  // pages computed above; safe to use here
+
+  const Header = () => (
+    <div id="printHeader" className="w-full flex items-center justify-between gap-2 px-3 pb-2 border-b border-gray-300">
+      <div className="flex items-center justify-start gap-3">
+        <div className="h-[70px] flex items-end">
+          <img src="/icon.svg" alt="icon" className="h-[80px] w-auto object-contain invoice-logo" />
+        </div>
+        <div className="flex flex-col items-start leading-tight">
+          <h1 className="text-2xl tracking-wider font-bold text-red-600">Dhaka Plastic & Metal</h1>
+          <span className="text-xs text-gray-700">Your Trusted Business Partner for Branding Solutions.</span>
+          <span className="text-xs text-gray-700">
+            <a href="mailto:info@dpmsign.com" target="_blank" className="text-blue-600 hover:underline" rel="noreferrer">info@dpmsign.com</a>
+            {" | "}
+            <a href="https://www.dpmsign.com" target="_blank" className="text-blue-600 hover:underline" rel="noreferrer">www.dpmsign.com</a>
+          </span>
+        </div>
+      </div>
+      <div className="text-right flex flex-col items-end">
+        <h2 className="text-[#3871C2] text-2xl font-semibold">INVOICE</h2>
+        <p className="font-bold text-lg">DPM-{currentOrder.orderId}</p>
+        <p className="text-xs mt-1 text-gray-700">Order Date: {new Date(currentOrder.createdAt).toLocaleDateString("en-GB")}</p>
+        <p className="text-xs text-gray-700">Delivery Date: {currentOrder.deliveryDate ? new Date(currentOrder.deliveryDate).toLocaleDateString("en-GB") : "N/A"}</p>
+      </div>
+    </div>
+  );
+
+  const Footer = () => (
+    <div className="bg-white text-xs text-black w-full py-3 px-4 border-t border-gray-300">
+      <div className="flex flex-row items-center justify-between w-full max-w-full mx-auto">
+        <div className="flex items-center gap-2 text-left w-1/3">
+          <svg className="w-4 h-4 text-blue-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 5a2 2 0 012-2h2.3a1 1 0 01.97.757l.7 2.8a1 1 0 01-.24.92L7.4 9.6a15.05 15.05 0 006 6l1.2-1.6a1 1 0 01.92-.24l2.8.7A1 1 0 0121 16.7V19a2 2 0 01-2 2h-1C8.5 21 3 15.5 3 8V5z" fill="#3871C2"/></svg>
+          <div className="leading-tight"><div>+8801919960198</div><div>+8801858253961</div></div>
+        </div>
+        <div className="flex items-center gap-2 justify-center w-1/3 text-center">
+          <svg className="w-4 h-4 text-blue-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 4h16v16H4z" fill="none"/><path d="M3 6.5L12 13l9-6.5" stroke="#3871C2" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/><rect x="3" y="5" width="18" height="14" rx="2" stroke="#3871C2" strokeWidth="0" fill="transparent"/></svg>
+          <div>info@dpmsign.com</div>
+        </div>
+        <div className="flex items-center gap-2 justify-end w-1/3 text-right">
+          <svg className="w-4 h-4 text-blue-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#3871C2"/><circle cx="12" cy="9" r="2.3" fill="#fff"/></svg>
+          <div className="leading-tight"><div>Shop No: 94 &amp; 142, Dhaka University</div><div>Market, Katabon Road, Dhaka-1000</div></div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="w-full h-full flex flex-col gap-10 pt-5">
+    <div className="w-full h-full flex flex-col gap-8 pt-5">
       <div className="w-full flex items-center justify-center gap-4 mb-4 print:hidden">
         <Button onClick={handlePrint} variant="outline" className="flex items-center gap-2">
           <Printer className="h-4 w-4" />
-          Print Invoice
-        </Button>
-        <Button onClick={handleDownloadPdf} disabled={downloading} className="flex items-center gap-2">
-          <Download className="h-4 w-4" />
-          {downloading ? "Generating PDF..." : "Download PDF"}
+          Print or Download Invoice
         </Button>
       </div>
 
-  <div id="invoicePrintArea" ref={printRef} className="invoice-a4 w-[794px] min-h-[1123px] h-auto mx-auto pt-1 print:break-after-avoid-page bg-white p-6 font-sans text-black flex flex-col justify-between">
-        <div id="printHeader" className="w-full flex items-center justify-between gap-2 px-3 pb-4 border-b-2 border-gray-300">
-          <div className="flex items-center justify-start gap-4">
-            <div className="flex items-center justify-center">
-              <img src="/icon.svg" alt="icon" className="h-14 w-auto object-contain" />
-            </div>
-            <div className="flex flex-col items-start gap-1">
-              <h1 className="text-3xl tracking-wider font-bold text-red-600">Dhaka Plastic & Metal</h1>
-              <span className="text-sm text-gray-700">Your Trusted Business Partner for Branding Solutions.</span>
-              <span className="text-sm text-gray-700">
-                <a href="mailto:info@dpmsign.com" target="_blank" className="text-blue-600 hover:underline" rel="noreferrer">
-                  info@dpmsign.com
-                </a>{" "}
-                |{" "}
-                <a href="https://www.dpmsign.com" target="_blank" className="text-blue-600 hover:underline" rel="noreferrer">
-                  www.dpmsign.com
-                </a>
-              </span>
-            </div>
-          </div>
-          <div className="text-right flex flex-col items-end">
-            <h2 className="text-[#3871C2] text-3xl font-semibold">INVOICE</h2>
-            <p className="font-bold text-xl">DPM-{currentOrder.orderId}</p>
-            <p className="text-sm mt-2 text-gray-700">Order Date: {new Date(currentOrder.createdAt).toLocaleDateString("en-GB")}</p>
-            <p className="text-sm text-gray-700">
-              Delivery Date: {currentOrder.deliveryDate ? new Date(currentOrder.deliveryDate).toLocaleDateString("en-GB") : "N/A"}
-            </p>
-          </div>
-        </div>
-
-  <div id="printContent" className="avoid-page-break h-max min-h-full py-6">
-          <div className="w-full h-[180px] mb-6 flex font-medium">
-            <div className="flex-1 pt-4 px-4">
-              <h3 className="text-base font-bold pb-2 text-gray-800">Billing Information:</h3>
-              <p className="text-sm text-gray-700">Name: {currentOrder.customerName}</p>
-              <p className="text-sm text-gray-700">Email: {currentOrder.customerEmail || "N/A"}</p>
-              <p className="text-sm text-gray-700">Phone: {currentOrder.customerPhone}</p>
-              <p className="text-sm text-gray-700">Address: {currentOrder.billingAddress}</p>
-            </div>
-            <div className="flex-1 pt-4 px-4">
-              <h3 className="text-base font-bold pb-2 text-gray-800">Shipping Information:</h3>
-              <p className="text-sm text-gray-700">Shipping Method: {currentOrder.deliveryMethod === "courier" ? "Courier" : "Shop Pickup"}</p>
-              {currentOrder.courierAddress && currentOrder.courierId && (
-                <>
-                  <p className="text-sm text-gray-700">Preferred Courier: {courierName}</p>
-                  <p className="text-sm text-gray-700">Courier Address: {currentOrder.courierAddress || "N/A"}</p>
-                </>
-              )}
-            </div>
-          </div>
-
-          <div className="w-full h-auto mb-6">
-            <h3 className="text-base font-bold mb-2 text-gray-800">Order Details</h3>
-            <table className="w-full table-auto border-collapse text-sm">
-              <thead>
-                <tr className="bg-[#3871C2] text-white print-bg">
-                  <th className="border border-blue-700 p-2 text-center w-[5%]">NO</th>
-                  <th className="border border-blue-700 p-2 text-left w-[40%]">DESCRIPTION</th>
-                  <th className="border border-blue-700 p-2 text-center w-[17%]">QTY / SQ,FT</th>
-                  <th className="border border-blue-700 p-2 text-center w-[18%]">UNIT PRICE (discounted)</th>
-                  <th className="border border-blue-700 p-2 text-center w-[20%]">TOTAL</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentOrder.orderItems.map((orderItem: OrderItemProps, index: number) => {
-                  const qty = Number(orderItem.quantity || 0);
-                  const unitBase = Number(orderItem.unitPrice ?? orderItem.product?.basePrice ?? 0);
-                  const addl = Number(orderItem.additionalPrice ?? orderItem.productVariant?.additionalPrice ?? 0);
-                  const discountPct = Number(orderItem.discountPercentage ?? 0);
-                  const effUnit = (unitBase + addl) * (1 - discountPct / 100);
-                  // If backend persisted a per-unit discounted price somewhere else, we don't have it; we compute
-                  const unitDisplay = effUnit;
-                  const lineTotal = Number(orderItem.price ?? 0) || Math.round(effUnit * qty + Number(orderItem.designCharge ?? 0));
-                  return (
-                    <tr key={orderItem.orderItemId} className={index % 2 === 0 ? "bg-white" : "bg-blue-100"}>
-                      <td className="border border-gray-300 p-2 text-center">{index + 1}</td>
-                      <td className="border border-gray-300 p-2 whitespace-normal break-words">
-                        <span className="font-semibold">{orderItem?.product?.name}</span>
-                        <br />
-                        <span className="text-xs text-gray-600">
-                          {orderItem?.productVariant?.variantDetails.map((detail: any) => (
-                            <span key={detail.productVariantDetailId} className="mr-2">
-                              {detail.variationItem.variation.name}: {detail.variationItem.value} {detail.variationItem.variation.unit}
-                            </span>
-                          ))}{" "}
-                          {orderItem.widthInch && orderItem.heightInch && (
-                            <span className="text-xs text-gray-600">({orderItem.widthInch} inch x {orderItem.heightInch} inch)</span>
-                          )}
-                        </span>
-                      </td>
-                      <td className="border border-gray-300 p-2 text-center">
-                        {qty} {qty > 1 ? "pcs" : "pc"}
-                        {orderItem.size ? ` (${orderItem.size.toLocaleString()} sq.ft)` : ""}
-                      </td>
-                      <td className="border border-gray-300 p-2 text-center">{unitDisplay.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} {currencyCode}</td>
-                      <td className="border border-gray-300 p-2 text-center">{lineTotal.toLocaleString()} {currencyCode}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="w-full flex justify-end mb-6">
-            <table id="totalsTable" className="w-[32%] table-fixed border-collapse text-sm">
-              <colgroup>
-                <col style={{ width: "60%" }} />
-                <col style={{ width: "40%" }} />
-              </colgroup>
-              <tbody>
-                <tr className="bg-white">
-                  <td className="px-3 py-2 text-right font-bold whitespace-nowrap align-middle">Unit Base:</td>
-                  <td className="px-3 py-2 text-right whitespace-nowrap align-middle">{totalUnitBase.toLocaleString()} {currencyCode}</td>
-                </tr>
-                <tr className="bg-white">
-                  <td className="px-3 py-2 text-right font-bold whitespace-nowrap align-middle">Additional:</td>
-                  <td className="px-3 py-2 text-right whitespace-nowrap align-middle">{totalAdditional.toLocaleString()} {currencyCode}</td>
-                </tr>
-                <tr className="bg-white">
-                  <td className="px-3 py-2 text-right font-bold whitespace-nowrap align-middle">Design Charge:</td>
-                  <td className="px-3 py-2 text-right whitespace-nowrap align-middle">{designCharge.toLocaleString()} {currencyCode}</td>
-                </tr>
-                <tr className="bg-white">
-                  <td className="px-3 py-2 text-right font-bold whitespace-nowrap align-middle">Discount:</td>
-                  <td className="px-3 py-2 text-right whitespace-nowrap align-middle">{Math.ceil(itemDiscountTotal).toLocaleString()} {currencyCode}</td>
-                </tr>
-                <tr className="bg-[#3871C2] text-white font-bold print-bg">
-                  <td className="border border-blue-700 px-2 py-1 text-right align-middle">
-                    <div className="h-8 flex items-center justify-end overflow-hidden">
-                      <span className="inline-block whitespace-nowrap leading-none tracking-normal text-base">GRAND TOTAL:</span>
+  <div id="invoicePrintArea" ref={printRef} className="w-[794px] mx-auto text-black">
+        {pages.map((pageItems, pageIndex) => {
+          const isFirst = pageIndex === 0;
+          const isLast = pageIndex === pages.length - 1;
+          return (
+            <div key={pageIndex} className="invoice-a4 bg-white p-4 font-sans text-black flex flex-col justify-between" ref={isLast ? lastPageRef : undefined}>
+              <Header />
+              <div className="flex-1 py-3">
+                {isFirst && (
+                  <div className="w-full h-auto mb-6 flex font-medium">
+                    <div className="flex-1 pt-2 px-3">
+                      <h3 className="text-sm font-bold pb-1 text-gray-800">Billing Information:</h3>
+                      <p className="text-xs text-gray-700">Name: {currentOrder.customerName}</p>
+                      <p className="text-xs text-gray-700">Email: {currentOrder.customerEmail || "N/A"}</p>
+                      <p className="text-xs text-gray-700">Phone: {currentOrder.customerPhone}</p>
+                      <p className="text-xs text-gray-700">Address: {currentOrder.billingAddress}</p>
                     </div>
-                  </td>
-                  <td className="border border-blue-700 px-2 py-1 text-right align-middle">
-                    <div className="h-8 flex items-center justify-end overflow-hidden">
-                      <span className="inline-block whitespace-nowrap leading-none tracking-normal text-base">{grandTotal.toLocaleString()} {currencyCode}</span>
+                    <div className="flex-1 pt-2 px-3">
+                      <h3 className="text-sm font-bold pb-1 text-gray-800">Shipping Information:</h3>
+                      <p className="text-xs text-gray-700">Shipping Method: {currentOrder.deliveryMethod === "courier" ? "Courier" : "Shop Pickup"}</p>
+                      {currentOrder.courierAddress && currentOrder.courierId && (<>
+                        <p className="text-xs text-gray-700">Preferred Courier: {courierName}</p>
+                        <p className="text-xs text-gray-700">Courier Address: {currentOrder.courierAddress || "N/A"}</p>
+                      </>)}
                     </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+                  </div>
+                )}
 
-          {currentOrder.payments.filter((p) => p.isPaid).length > 0 && (
-            <div className="w-full h-auto mb-6">
+                <div className="w-full h-auto mb-3">
+                  <h3 className="text-sm font-bold mb-1 text-gray-800">Order Details</h3>
+                  <table className="w-full table-auto border-collapse text-sm">
+                    <thead>
+                      <tr className="bg-[#3871C2] text-white">
+                        <th className="border border-blue-700 p-2 text-center w-[8%]">S/N</th>
+                        <th className="border border-blue-700 p-2 text-left w-[47%]">DESCRIPTION</th>
+                        <th className="border border-blue-700 p-2 text-center w-[15%]">QTY / SQ.FT</th>
+                        <th className="border border-blue-700 p-2 text-center w-[15%]">UNIT PRICE</th>
+                        <th className="border border-blue-700 p-2 text-center w-[15%]">TOTAL</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(pageItems.length ? pageItems : []).map((orderItem: OrderItemProps, idx: number) => {
+                        const globalIndex = pageIndex * itemsPerPage + idx;
+                        const toNum = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+                        const qty = Math.max(1, toNum(orderItem.quantity));
+                        const unitBase = toNum(orderItem.unitPrice) + toNum(orderItem.additionalPrice);
+                        const discPct = toNum(orderItem.discountPercentage);
+                        const hasBreakdown = unitBase > 0 || discPct > 0;
+                        const fallback = qty ? toNum(orderItem.price) / qty : 0;
+                        const unitNet = hasBreakdown ? unitBase * (1 - discPct / 100) : fallback;
+                        return (
+                          <tr key={orderItem.orderItemId} className={globalIndex % 2 === 0 ? "bg-white" : "bg-blue-100"}>
+                            <td className="border border-gray-300 p-2 text-center">{globalIndex + 1}</td>
+                            <td className="border border-gray-300 p-2 whitespace-normal break-words">
+                              <span className="font-semibold">{orderItem?.product?.name ?? "Unknown Product"}</span>
+                              <br />
+                              <span className="text-xs text-gray-600 ">
+                                {(() => {
+                                  const details = (orderItem?.productVariant?.variantDetails || []) as any[];
+                                  const labels = details.map((detail: any) => {
+                                    const varName = detail?.variationItem?.variation?.name || "";
+                                    const varUnit = detail?.variationItem?.variation?.unit || "";
+                                    const val = detail?.variationItem?.value || "";
+                                    return varName ? `${varName}: ${val} ${varUnit}` : String(val || "");
+                                  }).filter(Boolean);
+                                  return labels.length ? labels.join("; ") : null;
+                                })()}
+                                {(() => {
+                                  const sizeNum = Number(orderItem.size);
+                                  const showSize = Number.isFinite(sizeNum) && sizeNum > 0 && orderItem.widthInch != null && orderItem.heightInch != null;
+                                  return showSize ? ` (${orderItem.widthInch} inch x ${orderItem.heightInch} inch)` : "";
+                                })()}
+                              </span>
+                            </td>
+                            <td className="border border-gray-300 p-2 text-center">{orderItem.quantity} {orderItem.quantity > 1 ? "pcs" : "pc"}{(() => { const n = Number(orderItem.size); return Number.isFinite(n) && n > 0 ? ` (${n.toLocaleString()} sq.ft)` : ""; })()}</td>
+                            <td className="border border-gray-300 p-2 text-center">{unitNet.toLocaleString()} {currencyCode}</td>
+                            <td className="border border-gray-300 p-2 text-center">{Number(orderItem.price).toLocaleString()} {currencyCode}</td>
+                          </tr>
+                        );
+                      })}
+                      {(pageItems.length === 0) && (
+                        <tr>
+                          <td className="border border-gray-300 p-2 text-center">1</td>
+                          <td className="border border-gray-300 p-2"><span className="font-semibold">Order summary</span><br /><span className="text-xs text-gray-600">Item details are not available for this order.</span></td>
+                          <td className="border border-gray-300 p-2 text-center">—</td>
+                          <td className="border border-gray-300 p-2 text-center">—</td>
+                          <td className="border border-gray-300 p-2 text-center">{grandTotal.toLocaleString()} {currencyCode}</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {isLast && (
+                  <>
+                    <div className="w-full flex justify-end mb-4">
+                      <div className="w-[360px] text-sm">
+                        <div className="grid grid-cols-2">
+                          <div className="px-2 py-1 text-right font-bold bg-gray-50">Sub Total:</div>
+                          <div className="px-2 py-1 text-right bg-gray-50">{(subTotal - priceDetails.designChargeTotal + priceDetails.itemDiscountTotal).toLocaleString()} {currencyCode}</div>
+                          <div className="px-2 py-1 text-right font-bold bg-gray-50">Design Charge:</div>
+                          <div className="px-2 py-1 text-right bg-gray-50">{priceDetails.designChargeTotal.toLocaleString()} {currencyCode}</div>
+                          <div className="px-2 py-1 text-right font-bold bg-white">Discount:</div>
+                          <div className="px-2 py-1 text-right bg-white">{Math.ceil(priceDetails.itemDiscountTotal).toLocaleString()} {currencyCode}</div>
+                          <div className="col-span-2 h-1"></div>
+                          <div className="px-2 py-1.5 text-right font-bold text-lg bg-[#3871C2] text-white">GRAND TOTAL:</div>
+                          <div className="px-2 py-1.5 text-right font-bold text-lg bg-[#3871C2] text-white">{grandTotal.toLocaleString()} {currencyCode}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {currentOrder.payments.length > 0 && !splitPaymentToNewPage && (
+                      <div className="w-full h-auto mb-4">
+                        <h3 className="text-base font-bold mb-2 text-gray-800">Payment Details</h3>
+                        <table className="w-full table-auto border-collapse text-sm">
+                          <thead>
+                            <tr className="bg-[#3871C2] text-white">
+                              <th className="border border-blue-700 p-2 text-left">Payment Method</th>
+                              <th className="border border-blue-700 p-2 text-left">Status</th>
+                              <th className="border border-blue-700 p-2 text-right">Amount Paid</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {currentOrder.payments.map((payment) => (
+                              <tr key={payment.paymentId} className="bg-gray-50">
+                                <td className="border border-gray-300 p-2 text-left">{payment.paymentMethod === 'cod-payment' ? 'cash payment' : 'online payment'}</td>
+                                <td className="border border-gray-300 p-2 text-left">{payment.isPaid ? 'paid' : 'pending'}</td>
+                                <td className="border border-gray-300 p-2 text-right">{Number(payment.amount).toLocaleString()} {currencyCode}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        <div className="w-full flex justify-end mt-3"><div className="text-right font-bold">Amount Due: {amountDue.toLocaleString()} {currencyCode}</div></div>
+                        <p className="mt-2 font-semibold text-xs italic text-gray-700">NB: Delivery and Installation charges are the customer’s responsibility (if applicable).</p>
+                      </div>
+                    )}
+
+                    <div className="w-full h-auto min-h-min flex justify-between mt-8 text-center pb-2">
+                      <div><p className="text-sm font-semibold text-gray-800">Thank you for choosing Dhaka Plastic & Metal!</p></div>
+                      <div className="flex flex-col items-end"><p className="text-sm font-semibold text-gray-800">{agentInfo?.name ?? ""}</p><p className="text-sm text-gray-700">{agentInfo?.phone ?? ""}</p><p className="text-sm font-semibold text-gray-800 border-t border-gray-500 mt-2 pt-1">Authorized Signature</p><p className="text-sm font-semibold text-gray-800">For Dhaka Plastic & Metal</p></div>
+                    </div>
+                  </>
+                )}
+              </div>
+              <Footer />
+            </div>
+          );
+        })}
+        {splitPaymentToNewPage && currentOrder.payments.length > 0 && (
+          <div className="invoice-a4 bg-white p-4 font-sans text-black flex flex-col justify-between">
+            <Header />
+            <div className="flex-1 py-3">
               <h3 className="text-base font-bold mb-2 text-gray-800">Payment Details</h3>
               <table className="w-full table-auto border-collapse text-sm">
                 <thead>
                   <tr className="bg-[#3871C2] text-white">
                     <th className="border border-blue-700 p-2 text-left">Payment Method</th>
+                    <th className="border border-blue-700 p-2 text-left">Status</th>
                     <th className="border border-blue-700 p-2 text-right">Amount Paid</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {currentOrder.payments.filter((p) => p.isPaid).map((payment) => (
+                  {currentOrder.payments.map((payment) => (
                     <tr key={payment.paymentId} className="bg-gray-50">
-                      <td className="border border-gray-300 p-2 text-left">{payment.paymentMethod.split("-").join(" ")}</td>
+                      <td className="border border-gray-300 p-2 text-left">{payment.paymentMethod === 'cod-payment' ? 'cash payment' : 'online payment'}</td>
+                      <td className="border border-gray-300 p-2 text-left">{payment.isPaid ? 'paid' : 'pending'}</td>
                       <td className="border border-gray-300 p-2 text-right">{Number(payment.amount).toLocaleString()} {currencyCode}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-
-              <div className="w-full flex justify-end mt-3">
-                <div className="text-right font-bold">
-                  Amount Due: {amountDue.toLocaleString()} {currencyCode}
-                </div>
-              </div>
-
-              <p className="mt-4 font-semibold text-xs italic text-gray-700">NB: Delivery & Installation charges are the customer’s responsibility (if applicable).</p>
+              <div className="w-full flex justify-end mt-3"><div className="text-right font-bold">Amount Due: {amountDue.toLocaleString()} {currencyCode}</div></div>
+              <p className="mt-2 font-semibold text-xs italic text-gray-700">NB: Delivery and Installation charges are the customer’s responsibility (if applicable).</p>
             </div>
-          )}
-            {/* Flexible spacer to push footer to bottom when content is short (hidden on print) */}
-            <div className="flex-1 no-print" />
-
-
-          <div className="w-full h-auto min-h-min flex justify-between mt-16 text-center pb-4">
-            <div>
-              <p className="text-sm font-semibold text-gray-800">Thank you for choosing Dhaka Plastic & Metal!</p>
-            </div>
-            <div className="flex flex-col items-end">
-              <p className="text-sm font-semibold text-gray-800">{agentInfo?.name ?? ""}</p>
-              <p className="text-sm text-gray-700">{agentInfo?.phone ?? ""}</p>
-              <p className="text-sm font-semibold text-gray-800 border-t border-gray-500 mt-2 pt-1">Authorized Signature</p>
-              <p className="text-sm font-semibold text-gray-800">For Dhaka Plastic & Metal</p>
-            </div>
+            <Footer />
           </div>
-
-          <div id="printFooter" className="bg-white text-xs text-black w-full py-3 px-4 border-t border-gray-300">
-            <div className="flex flex-row items-center justify-between w-full max-w-full mx-auto">
-              <div className="flex items-center gap-2 text-left w-1/3">
-                <svg className="w-4 h-4 text-blue-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M3 5a2 2 0 012-2h2.3a1 1 0 01.97.757l.7 2.8a1 1 0 01-.24.92L7.4 9.6a15.05 15.05 0 006 6l1.2-1.6a1 1 0 01.92-.24l2.8.7A1 1 0 0121 16.7V19a2 2 0 01-2 2h-1C8.5 21 3 15.5 3 8V5z" fill="#3871C2"/>
-                </svg>
-                <div className="leading-tight">
-                  <div>+8801919960198</div>
-                  <div>+8801858253961</div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 justify-center w-1/3 text-center">
-                <svg className="w-4 h-4 text-blue-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M4 4h16v16H4z" fill="none"/>
-                  <path d="M3 6.5L12 13l9-6.5" stroke="#3871C2" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                  <rect x="3" y="5" width="18" height="14" rx="2" stroke="#3871C2" strokeWidth="0" fill="transparent"/>
-                </svg>
-                <div>info@dpmsign.com</div>
-              </div>
-
-              <div className="flex items-center gap-2 justify-end w-1/3 text-right">
-                <svg className="w-4 h-4 text-blue-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#3871C2"/>
-                  <circle cx="12" cy="9" r="2.3" fill="#fff"/>
-                </svg>
-                <div className="leading-tight">
-                  <div>Shop No: 94 &amp; 142, Dhaka University</div>
-                  <div>Market, Katabon Road, Dhaka-1000</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

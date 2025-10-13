@@ -334,41 +334,35 @@ const Orders = () => {
 																		<div className="flex items-center gap-4">
 																			<div>
 																				<p className="font-semibold truncate">
-																					{item.product.name.slice(0, 40)}
-																					{item.product.name.length > 40 &&
+																					{(() => {
+																						const productName = item.product?.name ?? "Unknown Product";
+																						return productName.slice(0, 40);
+																					})()}
+																					{((item.product?.name ?? "Unknown Product").length > 40) &&
 																						"..."}
 																				</p>
 																				<div className="text-sm text-gray-500 mt-1">
 																					SKU:{" "}
 																					<span className="text-skyblue">
-																						{item.product.sku}{" "}
+																						{item.product?.sku ?? "N/A"}{" "}
 																					</span>
-																					{item.productVariant.variantDetails.map(
-																						(detail: any) => (
-																							<span
-																								key={
-																									detail.productVariantDetailId
-																								}
-																								className="mr-2"
-																							>
-																								{
-																									detail.variationItem.variation
-																										.name
-																								}
-																								: {detail.variationItem.value}{" "}
-																								{
-																									detail.variationItem.variation
-																										.unit
-																								}{" "}
-																								{item.widthInch &&
-																									item.heightInch && (
+																					{(item.productVariant?.variantDetails || []).map(
+																						(detail: any) => {
+																							const key = detail?.productVariantDetailId ?? `${detail?.variationItem?.variationItemId ?? Math.random()}`;
+																							const vName = detail?.variationItem?.variation?.name ?? "Variation";
+																							const vValue = detail?.variationItem?.value ?? "";
+																							const vUnit = detail?.variationItem?.variation?.unit ?? "";
+																							return (
+																								<span key={key} className="mr-2">
+																									{vName}: {vValue} {vUnit}{" "}
+																									{item.widthInch && item.heightInch && (
 																										<span className="text-xs text-neutral-600">
-																											{item.widthInch} inch x{" "}
-																											{item.heightInch} inch
+																											{item.widthInch} inch x {item.heightInch} inch
 																										</span>
 																									)}
-																							</span>
-																						)
+																								</span>
+																							);
+																						}
 																					)}
 																				</div>
 																			</div>
