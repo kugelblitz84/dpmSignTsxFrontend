@@ -90,7 +90,7 @@ const Invoice = () => {
   }, [order, staff]);
 
   // Pagination helpers: 4 items per page. Must be declared before any early return to respect Rules of Hooks.
-  const itemsPerPage = 7; // match admin panel layout density
+  const itemsPerPage = 6; // match admin panel layout density
   const pages: OrderItemProps[][] = useMemo(() => {
     const items = order?.orderItems || [];
     const res: OrderItemProps[][] = [];
