@@ -31,7 +31,9 @@ import { Button } from "@/components/ui/button";
 import {
 	CalendarIcon,
 	Clock,
+	Download,
 	ExternalLink,
+	Loader2,
 	Mail,
 	MapPin,
 	Package,
@@ -47,12 +49,94 @@ import {
 } from "@/components/ui/carousel";
 import { useAuth } from "@/hooks/use-auth";
 import { StaffProps } from "../checkout";
-import { staffService } from "@/api";
+import { orderService, staffService } from "@/api";
+import { useToast } from "@/hooks/use-toast";
 
 const Orders = () => {
 	const { token, logout } = useAuth();
 	const { orders, loading } = useOrders();
 	const [staff, setStaff] = useState<StaffProps[]>([]);
+	const { toast } = useToast();
+	const [downloadingOrderId, setDownloadingOrderId] = useState<number | null>(null);
+	const [previewLoadingOrderId, setPreviewLoadingOrderId] = useState<number | null>(null);
+	const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
+
+	useEffect(() => {
+		return () => {
+			if (previewBlobUrl) {
+				URL.revokeObjectURL(previewBlobUrl);
+			}
+		};
+	}, [previewBlobUrl]);
+
+	const handleViewInvoice = async (targetOrderId: number) => {
+		if (!token) {
+			toast({ description: "Please sign in to view invoices.", variant: "destructive" });
+			return logout();
+		}
+
+		if (previewBlobUrl) {
+			URL.revokeObjectURL(previewBlobUrl);
+			setPreviewBlobUrl(null);
+		}
+
+		setPreviewLoadingOrderId(targetOrderId);
+
+		try {
+			const blob = await orderService.downloadInvoice(token, targetOrderId);
+			const blobUrl = URL.createObjectURL(blob);
+			setPreviewBlobUrl(blobUrl);
+
+			const popup = window.open("", "_blank");
+			if (!popup) {
+				URL.revokeObjectURL(blobUrl);
+				setPreviewBlobUrl(null);
+				toast({ description: "Unable to open preview. Please allow pop-ups and try again.", variant: "destructive" });
+				return;
+			}
+
+			popup.document.write(`<!DOCTYPE html><html><head><title>Invoice ${targetOrderId}</title><style>html,body{margin:0;height:100%;}iframe{width:100%;height:100%;border:none;}</style></head><body><iframe src="${blobUrl}" allowfullscreen></iframe></body></html>`);
+			popup.document.close();
+			try {
+				popup.focus();
+			} catch (err) {
+				console.debug("Popup focus blocked", err);
+			}
+		} catch (err: unknown) {
+			const message = `Unable to load invoice preview. Request: ${JSON.stringify({ orderId: targetOrderId })}`;
+			if (err instanceof Error) {
+				console.error("Invoice preview request failed", err);
+			}
+			toast({ description: message, variant: "destructive" });
+		} finally {
+			setPreviewLoadingOrderId(null);
+		}
+	};
+
+	const handleDownloadInvoice = async (targetOrderId: number) => {
+		if (!token) {
+			toast({ description: "Please sign in to download invoices.", variant: "destructive" });
+			return logout();
+		}
+
+		setDownloadingOrderId(targetOrderId);
+		try {
+			const blob = await orderService.downloadInvoice(token, targetOrderId);
+			const blobUrl = URL.createObjectURL(blob);
+			const link = document.createElement("a");
+			link.href = blobUrl;
+			link.download = `invoice-${targetOrderId}.pdf`;
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			URL.revokeObjectURL(blobUrl);
+		} catch (err: unknown) {
+			const message = err instanceof Error ? err.message : "Unable to download invoice.";
+			toast({ description: message, variant: "destructive" });
+		} finally {
+			setDownloadingOrderId(null);
+		}
+	};
 
 	useEffect(() => {
 		const fetchStaff = async () => {
@@ -418,15 +502,33 @@ const Orders = () => {
 
 											<DialogFooter className="flex justify-between">
 												<div className="w-full flex justify-end gap-4">
-													<Link
-														to={`/invoice/${order.orderId}`}
-														target="_blank"
+													<Button
+														size="sm"
+														className="gap-2"
+														onClick={() => handleViewInvoice(order.orderId)}
+														disabled={previewLoadingOrderId === order.orderId}
 													>
-														<Button size="sm" className="gap-2">
-															<ExternalLink />
-															View Invoice
-														</Button>
-													</Link>
+														{previewLoadingOrderId === order.orderId ? (
+															<Loader2 className="h-4 w-4 animate-spin" />
+														) : (
+															<ExternalLink className="h-4 w-4" />
+														)}
+														View Invoice
+													</Button>
+													<Button
+														variant="outline"
+														size="sm"
+														className="gap-2"
+														onClick={() => handleDownloadInvoice(order.orderId)}
+														disabled={downloadingOrderId === order.orderId}
+													>
+														{downloadingOrderId === order.orderId ? (
+															<Loader2 className="h-4 w-4 animate-spin" />
+														) : (
+															<Download className="h-4 w-4" />
+														)}
+														Download PDF
+													</Button>
 												</div>
 											</DialogFooter>
 										</DialogContent>

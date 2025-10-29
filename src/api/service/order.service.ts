@@ -27,6 +27,7 @@ class Order {
 	private orderRequestCreateUrl: string;
 	private fetchOrderByCustomerUrl: string;
 	private fetchMyOrdersUrl: string;
+	private downloadInvoiceUrl: string;
 	public orderRequestCreateSchema: Joi.ObjectSchema;
 
 	constructor() {
@@ -98,6 +99,7 @@ class Order {
 		this.orderRequestCreateUrl = `${apiBaseURL}/order/create-request`;
 		this.fetchOrderByCustomerUrl = `${apiBaseURL}/order/customer`;
 		this.fetchMyOrdersUrl = `${apiBaseURL}/order/my`;
+		this.downloadInvoiceUrl = `${apiBaseURL}/order`;
 		// Allow unknown fields so UI-only fields (e.g., paymentMethod) don't fail validation
 		this.orderRequestCreateSchema = Joi.object(this.schema).unknown(true);
 	}
@@ -393,6 +395,40 @@ class Order {
 			let fetchRequestError: ApiError = {
 				name: "Error",
 				message: "An unknown error occured.",
+				error: err as Error,
+				status: undefined,
+			};
+			if (err instanceof AxiosError) {
+				const data = (err.response?.data || {}) as AxiosErrorData;
+				fetchRequestError = {
+					name: err.name || "AxiosError",
+					status: data.status ?? err.status,
+					message: data.message || data.error || err.message,
+					error: err,
+				} as ApiError;
+			}
+			throw fetchRequestError;
+		}
+	};
+
+	// Download generated invoice PDF from backend
+		downloadInvoice = async (token: string, orderId: number): Promise<Blob> => {
+		try {
+			const response = await apiClient.get(
+				`${this.downloadInvoiceUrl}/${orderId}/invoice`,
+				{
+					headers: {
+						Authorization: `Bearer ${token}`,
+						Accept: "application/pdf",
+					},
+					responseType: "blob",
+				}
+			);
+			return response.data as Blob;
+		} catch (err: unknown) {
+			let fetchRequestError: ApiError = {
+				name: "Error",
+				message: "Could not download invoice.",
 				error: err as Error,
 				status: undefined,
 			};

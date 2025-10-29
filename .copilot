@@ -1,0 +1,8 @@
+TODO:
+1. Inspect invoice page and related buttons triggering view/download.
+2. ✅ Inspect existing view invoice button in account/orders page; plan preview dialog approach.
+3. ✅ Add service method (if missing) to fetch invoice PDF via new route per docs.
+4. ✅ Update view invoice flow to fetch blob, preview inline without auto-saving.
+5. ✅ Ensure download button still triggers file save via route.
+6. ✅ Replace modal preview with new-tab PDF view; ensure URL revoked when unused.
+7. Test integration and clean up object URLs.
