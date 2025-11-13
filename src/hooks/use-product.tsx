@@ -149,6 +149,10 @@ const ProductProvider = ({ children }: { children: React.ReactNode }) => {
 	const [fetchedProducts, setFetchedProducts] = useState<
 		Map<number, ProductProps>
 	>(new Map());
+	const [productPageCache, setProductPageCache] = useState<
+		Map<number, ProductProps[]>
+	>(new Map());
+	const [productPageCacheKey, setProductPageCacheKey] = useState<string>("");
 
 	const [searchTerm, setSearchTerm] = useState<string>("");
 	const [page, setPage] = useState<number>(1);
@@ -163,40 +167,87 @@ const ProductProvider = ({ children }: { children: React.ReactNode }) => {
 	const location = useLocation();
 
 	// Fetch product from the API
+	const normalizeProducts = (items: ProductProps[]) =>
+		items
+			.map((item: ProductProps) => ({
+				...item,
+				basePrice: Number(item.basePrice),
+				variants: item.variants?.map((variant: VariantProps) => ({
+					...variant,
+					additionalPrice: Number(variant.additionalPrice),
+				})),
+				images:
+					item.images?.map((image) => ({
+						...image,
+						imageUrl: urlJoin(
+							apiStaticURL,
+							"/product-images",
+							image.imageName
+						),
+					})) || [],
+				reviews: item.reviews || [],
+			}))
+			.filter((product: ProductProps) => product.isActive === true)
+			.sort(
+				(a, b) =>
+					new Date(a.createdAt).valueOf() - new Date(b.createdAt).valueOf()
+			);
+
 	const fetchProduct = async () => {
 		if (loading) return;
 		setLoading(true);
 		setError(null);
 		try {
-			const response = await productService.fetchAllProduct(
+				const nextCacheKey = `${location.pathname}|${searchTerm}|${limit}`;
+				const baseCache =
+					productPageCacheKey === nextCacheKey
+						? productPageCache
+						: new Map<number, ProductProps[]>();
+				let cache = new Map(baseCache);
+			let metadataResponse = await productService.fetchAllProduct(
 				searchTerm,
-				page,
+				1,
 				limit
 			);
-			const updatedProducts = response.data.products
-				.map((item: ProductProps) => ({
-					...item,
-					basePrice: Number(item.basePrice),
-					variants: item.variants?.map((variant: VariantProps) => ({
-						...variant,
-						additionalPrice: Number(variant.additionalPrice),
-					})),
-					images:
-						item.images?.map((image) => ({
-							...image,
-							imageUrl: urlJoin(
-								apiStaticURL,
-								"/product-images",
-								image.imageName
-							),
-						})) || [],
-	                    // Ensure reviews is always an array to avoid runtime errors when components call .filter/.length
-	                    reviews: item.reviews || [],
-				}))
-				.filter((product: ProductProps) => product.isActive === true);
+			let resolvedTotalPages = metadataResponse.data.totalPages ?? 1;
+			const metaProducts = normalizeProducts(metadataResponse.data.products);
+			cache.set(1, metaProducts);
 
-			setProducts(updatedProducts);
-			setTotalPages(response.data.totalPages);
+			const requiredCount = Math.max(1, page) * limit;
+			const aggregated: ProductProps[] = [];
+			for (
+				let current = resolvedTotalPages;
+				current >= 1 && aggregated.length < requiredCount;
+				current--
+			) {
+				let chunk = cache.get(current);
+				if (!chunk) {
+					const pageResponse = await productService.fetchAllProduct(
+						searchTerm,
+						current,
+						limit
+					);
+					resolvedTotalPages =
+						pageResponse.data.totalPages ?? resolvedTotalPages;
+					chunk = normalizeProducts(pageResponse.data.products);
+					cache.set(current, chunk);
+				}
+				if (chunk.length === 0) {
+					continue;
+				}
+				aggregated.push(...chunk);
+			}
+
+			const startIndex = Math.max(0, (Math.max(1, page) - 1) * limit);
+			let pagedProducts = aggregated.slice(startIndex, startIndex + limit);
+			if (pagedProducts.length === 0 && aggregated.length > 0) {
+				pagedProducts = aggregated.slice(-limit);
+			}
+
+			setProducts(pagedProducts);
+			setTotalPages(Math.max(1, resolvedTotalPages));
+			setProductPageCache(cache);
+			setProductPageCacheKey(nextCacheKey);
 		} catch (err: unknown) {
 			const message =
 				err instanceof Error ? err.message : "Failed to fetch products.";

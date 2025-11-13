@@ -6,3 +6,8 @@ TODO:
 5. ✅ Ensure download button still triggers file save via route.
 6. ✅ Replace modal preview with new-tab PDF view; ensure URL revoked when unused.
 7. Test integration and clean up object URLs.
+8. ✅ Review product listing logic: pagination, sorting, filtering on products page.
+9. ✅ Ensure default ordering across pages is ascending by createdAt (oldest first).
+10. ✅ Adjust sorting/pagination mechanism to apply order before slicing/paginating.
+11. ✅ Validate there’s no regression with existing category filters and manual sort options.
+12. Test pagination to confirm first page shows oldest products and later pages progressively newer.

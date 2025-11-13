@@ -69,7 +69,10 @@ const Products = () => {
 		} else if (sortedBy === "name") {
 			sorted.sort((a, b) => a.name.localeCompare(b.name));
 		} else {
-			sorted.sort((a, b) => a.productId - b.productId); // Default sorting by ID
+			sorted.sort(
+				(a, b) =>
+					new Date(a.createdAt).valueOf() - new Date(b.createdAt).valueOf()
+			);
 		}
 
 		// Update the state with the final sorted and filtered products
