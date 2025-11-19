@@ -130,7 +130,6 @@ export interface ProductContextProps {
 	setPage: React.Dispatch<React.SetStateAction<number>>;
 	totalPages: number;
 	limit: number;
-	setLimit: React.Dispatch<React.SetStateAction<number>>;
 	excludeProductId: number | undefined;
 	setExcludeProductId: React.Dispatch<React.SetStateAction<number | undefined>>;
 	loading: boolean;
@@ -142,6 +141,8 @@ export interface ProductContextProps {
 }
 
 const ProductContext = createContext<ProductContextProps | null>(null);
+
+const PAGE_SIZE = 20;
 
 const ProductProvider = ({ children }: { children: React.ReactNode }) => {
 	const [products, setProducts] = useState<ProductProps[]>([]);
@@ -156,7 +157,7 @@ const ProductProvider = ({ children }: { children: React.ReactNode }) => {
 
 	const [searchTerm, setSearchTerm] = useState<string>("");
 	const [page, setPage] = useState<number>(1);
-	const [limit, setLimit] = useState<number>(20);
+	const limit = PAGE_SIZE;
 	const [excludeProductId, setExcludeProductId] = useState<number | undefined>(
 		undefined
 	);
@@ -359,7 +360,7 @@ const ProductProvider = ({ children }: { children: React.ReactNode }) => {
 	useEffect(() => {
 		fetchProduct();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [location, searchTerm, page, limit]);
+	}, [location, searchTerm, page]);
 
 	// Fetch product on component mount
 	useEffect(() => {
@@ -378,7 +379,6 @@ const ProductProvider = ({ children }: { children: React.ReactNode }) => {
 			page,
 			setPage,
 			limit,
-			setLimit,
 			excludeProductId,
 			setExcludeProductId,
 			loading,
@@ -389,7 +389,7 @@ const ProductProvider = ({ children }: { children: React.ReactNode }) => {
 			fetchProductById,
 		}),
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-		[products, loading, error, searchTerm, page, limit]
+		[products, loading, error, searchTerm, page]
 	);
 
 	return (

@@ -28,8 +28,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import SEO from "@/components/seo";
 
 const Products = () => {
-	const { products, totalPages, page, setPage, setLimit, loading } =
-		useProduct();
+	const { products, totalPages, page, setPage, loading } = useProduct();
 	const { categories } = useCategory();
 	const [selectedCategories, setSelectedCategories] = useState<CategoryProps[]>(
 		[]
@@ -79,7 +78,11 @@ const Products = () => {
 		setSortedProducts(sorted);
 	}, [sortedBy, selectedCategories, products]);
 
-	return (
+	useEffect(() => {
+		setPage(1);
+	}, [selectedCategories, setPage]);
+
+		return (
 		<>
 			<SEO
 				title="Products - Dhaka Plastic & Metal | Signage & Corporate Gifts"
@@ -161,22 +164,6 @@ const Products = () => {
 								</SelectGroup>
 							</SelectContent>
 						</Select>
-
-						{totalPages > 1 && (
-							<Select onValueChange={(e) => setLimit(Number(e) as number)}>
-								<SelectTrigger className="w-[150px]">
-									<SelectValue placeholder="Show items" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectGroup>
-										<SelectItem value="20">20</SelectItem>
-										<SelectItem value="50">50</SelectItem>
-										<SelectItem value="90">90</SelectItem>
-										<SelectItem value="120">120</SelectItem>
-									</SelectGroup>
-								</SelectContent>
-							</Select>
-						)}
 					</div>
 				</div>
 
