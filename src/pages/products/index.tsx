@@ -28,7 +28,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import SEO from "@/components/seo";
 
 const Products = () => {
-	const { products, totalPages, page, setPage, loading } = useProduct();
+	const {
+		products,
+		totalPages,
+		page,
+		setPage,
+		loading,
+		setSelectedCategoryIds,
+	} = useProduct();
 	const { categories } = useCategory();
 	const [selectedCategories, setSelectedCategories] = useState<CategoryProps[]>(
 		[]
@@ -79,10 +86,14 @@ const Products = () => {
 	}, [sortedBy, selectedCategories, products]);
 
 	useEffect(() => {
+		setSelectedCategoryIds(selectedCategories.map((cat) => cat.categoryId));
+	}, [selectedCategories, setSelectedCategoryIds]);
+
+	useEffect(() => {
 		setPage(1);
 	}, [selectedCategories, setPage]);
 
-		return (
+	return (
 		<>
 			<SEO
 				title="Products - Dhaka Plastic & Metal | Signage & Corporate Gifts"

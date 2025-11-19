@@ -130,6 +130,8 @@ export interface ProductContextProps {
 	setPage: React.Dispatch<React.SetStateAction<number>>;
 	totalPages: number;
 	limit: number;
+	selectedCategoryIds: number[];
+	setSelectedCategoryIds: React.Dispatch<React.SetStateAction<number[]>>;
 	excludeProductId: number | undefined;
 	setExcludeProductId: React.Dispatch<React.SetStateAction<number | undefined>>;
 	loading: boolean;
@@ -156,6 +158,7 @@ const ProductProvider = ({ children }: { children: React.ReactNode }) => {
 	const [productPageCacheKey, setProductPageCacheKey] = useState<string>("");
 
 	const [searchTerm, setSearchTerm] = useState<string>("");
+	const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
 	const [page, setPage] = useState<number>(1);
 	const limit = PAGE_SIZE;
 	const [excludeProductId, setExcludeProductId] = useState<number | undefined>(
@@ -199,54 +202,79 @@ const ProductProvider = ({ children }: { children: React.ReactNode }) => {
 		setLoading(true);
 		setError(null);
 		try {
-				const nextCacheKey = `${location.pathname}|${searchTerm}|${limit}`;
-				const baseCache =
-					productPageCacheKey === nextCacheKey
-						? productPageCache
-						: new Map<number, ProductProps[]>();
-				let cache = new Map(baseCache);
-			let metadataResponse = await productService.fetchAllProduct(
+			const nextCacheKey = `${location.pathname}|${searchTerm}|${limit}`;
+			let cache =
+				productPageCacheKey === nextCacheKey
+					? new Map(productPageCache)
+					: new Map<number, ProductProps[]>();
+
+			const metadataResponse = await productService.fetchAllProduct(
 				searchTerm,
 				1,
 				limit
 			);
-			let resolvedTotalPages = metadataResponse.data.totalPages ?? 1;
-			const metaProducts = normalizeProducts(metadataResponse.data.products);
-			cache.set(1, metaProducts);
+			const resolvedTotalPages = metadataResponse.data.totalPages ?? 1;
+			const pageOneProducts = normalizeProducts(metadataResponse.data.products);
+			cache.set(1, pageOneProducts);
 
-			const requiredCount = Math.max(1, page) * limit;
+			const fetchPage = async (pageNumber: number) => {
+				const response = await productService.fetchAllProduct(
+					searchTerm,
+					pageNumber,
+					limit
+				);
+				const normalized = normalizeProducts(response.data.products);
+				cache.set(pageNumber, normalized);
+			};
+
+			const pageFetches: Promise<void>[] = [];
+			for (let current = 2; current <= resolvedTotalPages; current++) {
+				if (!cache.has(current)) {
+					pageFetches.push(fetchPage(current));
+				}
+			}
+			await Promise.all(pageFetches);
+
 			const aggregated: ProductProps[] = [];
-			for (
-				let current = resolvedTotalPages;
-				current >= 1 && aggregated.length < requiredCount;
-				current--
-			) {
-				let chunk = cache.get(current);
-				if (!chunk) {
-					const pageResponse = await productService.fetchAllProduct(
-						searchTerm,
-						current,
-						limit
-					);
-					resolvedTotalPages =
-						pageResponse.data.totalPages ?? resolvedTotalPages;
-					chunk = normalizeProducts(pageResponse.data.products);
-					cache.set(current, chunk);
+			const orderedKeys = Array.from(cache.keys()).sort((a, b) => a - b);
+			orderedKeys.forEach((key) => {
+				const chunk = cache.get(key) ?? [];
+				if (chunk.length > 0) {
+					aggregated.push(...chunk);
 				}
-				if (chunk.length === 0) {
-					continue;
-				}
-				aggregated.push(...chunk);
+			});
+
+			const filteredProducts =
+				selectedCategoryIds.length > 0
+					? aggregated.filter((product) =>
+						product.categoryId !== null &&
+						selectedCategoryIds.includes(product.categoryId)
+					)
+					: aggregated;
+			const sortedFiltered = filteredProducts.sort(
+				(a, b) =>
+					new Date(a.createdAt).valueOf() - new Date(b.createdAt).valueOf()
+			);
+			const filteredTotalPages = Math.max(
+				1,
+				Math.ceil(sortedFiltered.length / limit)
+			);
+			if (page > filteredTotalPages) {
+				setProductPageCache(cache);
+				setProductPageCacheKey(nextCacheKey);
+				setTotalPages(filteredTotalPages);
+				setPage(filteredTotalPages);
+				return;
 			}
 
 			const startIndex = Math.max(0, (Math.max(1, page) - 1) * limit);
-			let pagedProducts = aggregated.slice(startIndex, startIndex + limit);
-			if (pagedProducts.length === 0 && aggregated.length > 0) {
-				pagedProducts = aggregated.slice(-limit);
-			}
+			const pagedProducts = sortedFiltered.slice(
+				startIndex,
+				startIndex + limit
+			);
 
 			setProducts(pagedProducts);
-			setTotalPages(Math.max(1, resolvedTotalPages));
+			setTotalPages(filteredTotalPages);
 			setProductPageCache(cache);
 			setProductPageCacheKey(nextCacheKey);
 		} catch (err: unknown) {
@@ -360,7 +388,7 @@ const ProductProvider = ({ children }: { children: React.ReactNode }) => {
 	useEffect(() => {
 		fetchProduct();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [location, searchTerm, page]);
+	}, [location, searchTerm, page, selectedCategoryIds]);
 
 	// Fetch product on component mount
 	useEffect(() => {
@@ -379,6 +407,8 @@ const ProductProvider = ({ children }: { children: React.ReactNode }) => {
 			page,
 			setPage,
 			limit,
+			selectedCategoryIds,
+			setSelectedCategoryIds,
 			excludeProductId,
 			setExcludeProductId,
 			loading,
@@ -389,7 +419,7 @@ const ProductProvider = ({ children }: { children: React.ReactNode }) => {
 			fetchProductById,
 		}),
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-		[products, loading, error, searchTerm, page]
+		[products, loading, error, searchTerm, page, selectedCategoryIds]
 	);
 
 	return (
