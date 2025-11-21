@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import heroVideo from "@/assets/video/DPM_Ads_Video[1].mp4";
 import { scroller } from "react-scroll";
 
 const Hero = () => {
@@ -21,10 +22,7 @@ const Hero = () => {
 					playsInline
 					className="w-full h-full object-cover md:aspect-video aspect-square"
 				>
-					<source
-						src="https://res.cloudinary.com/dl1lwmw6h/video/upload/v1742982151/dpm-muted_zymymf.mp4"
-						type="video/mp4"
-					/>
+					<source src={heroVideo} type="video/mp4" />
 					Your browser does not support the video tag.
 				</video>
 			</div>
